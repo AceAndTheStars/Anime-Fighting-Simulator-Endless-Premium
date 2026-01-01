@@ -1,0 +1,9 @@
+loadstring(game:HttpGet("https://raw.githubusercontent.com/VisualDoggyStudios/Anime-Fighting-Simulator-Endless-Premium/refs/heads/main/AutofarmPremium_obfuscated.lua"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/VisualDoggyStudios/Anime-Fighting-Simulator-Endless-Premium/refs/heads/main/ChikaraPremium_obfuscated.lua"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/VisualDoggyStudios/Anime-Fighting-Simulator-Endless-Premium/refs/heads/main/CodesPremium_obfuscated.lua"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/VisualDoggyStudios/Anime-Fighting-Simulator-Endless-Premium/refs/heads/main/FruitsPremium_obfuscated.lua"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/VisualDoggyStudios/Anime-Fighting-Simulator-Endless-Premium/refs/heads/main/MiscPremium_obfuscated.lua"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/VisualDoggyStudios/Anime-Fighting-Simulator-Endless-Premium/refs/heads/main/MobsPremium_obfuscated.lua"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/VisualDoggyStudios/Anime-Fighting-Simulator-Endless-Premium/refs/heads/main/TeleportsPremium_obfuscated.lua"))()
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/VisualDoggyStudios/Anime-Fighting-Simulator-Endless-Premium/refs/heads/main/AFSEP_obfuscated.lua"))()
