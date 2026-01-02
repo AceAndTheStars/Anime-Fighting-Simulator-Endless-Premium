@@ -1,5 +1,11 @@
 -- ClassesPremium.lua - External Classes System Module (Simplified)
 
+-- Get Rayfield from global if available
+local Rayfield = _G.Rayfield or (function()
+    warn("[ClassesPremium] Rayfield not found in _G, notifications may not work")
+    return nil
+end)()
+
 -- Class name mapping
 local ClassNames = {
     [1] = "Fighter", [2] = "Shinobi", [3] = "Pirate", [4] = "Ghoul", [5] = "Hero",
@@ -11,7 +17,7 @@ local ClassNames = {
 }
 
 -- Live Current Class Updater
-spawn(function()
+task.spawn(function()
     local previousClass = ""
     while true do
         task.wait(2)
@@ -31,7 +37,7 @@ spawn(function()
             end
 
             -- Notify on rank up
-            if className ~= previousClass and previousClass ~= "" then
+            if className ~= previousClass and previousClass ~= "" and Rayfield then
                 Rayfield:Notify({
                     Title = "Class Rank Up!",
                     Content = "Successfully ranked up to " .. className .. "!",
@@ -54,17 +60,19 @@ _G.ToggleAutoRankUpClass = function(enabled)
         if _G.AutoRankUpLoop then return end
         _G.AutoRankUpLoop = true
 
-        Rayfield:Notify({
-            Title = "Auto Rank Up Class",
-            Content = "Enabled! Attempting to rank up every ~2 seconds.",
-            Duration = 7,
-            Image = 4483362458
-        })
+        if Rayfield then
+            Rayfield:Notify({
+                Title = "Auto Rank Up Class",
+                Content = "Enabled! Attempting to rank up every ~2 seconds.",
+                Duration = 7,
+                Image = 4483362458
+            })
+        end
         if _G.ClassStatusLabel then 
             _G.ClassStatusLabel:Set("Status: ACTIVE (working...)") 
         end
 
-        spawn(function()
+        task.spawn(function()
             -- Try to find the correct remote (common names in AFSE-like games)
             local Remotes = game:GetService("ReplicatedStorage"):WaitForChild("Remotes")
             local possibleRemoteNames = {
@@ -85,12 +93,14 @@ _G.ToggleAutoRankUpClass = function(enabled)
 
             if not classRemote then
                 warn("[AFSE Premium] WARNING: No class rank-up remote found in Remotes!")
-                Rayfield:Notify({
-                    Title = "Auto Rank Up Error",
-                    Content = "Couldn't find the class rank-up remote.\nCheck console (F9) for details.",
-                    Duration = 12,
-                    Image = 4483362458
-                })
+                if Rayfield then
+                    Rayfield:Notify({
+                        Title = "Auto Rank Up Error",
+                        Content = "Couldn't find the class rank-up remote.\nCheck console (F9) for details.",
+                        Duration = 12,
+                        Image = 4483362458
+                    })
+                end
                 _G.AutoRankUpLoop = false
                 if _G.ClassStatusLabel then 
                     _G.ClassStatusLabel:Set("Status: FAILED - Remote not found") 
@@ -114,12 +124,14 @@ _G.ToggleAutoRankUpClass = function(enabled)
 
     else
         _G.AutoRankUpLoop = false
-        Rayfield:Notify({
-            Title = "Auto Rank Up Class",
-            Content = "Disabled.",
-            Duration = 5,
-            Image = 4483362458
-        })
+        if Rayfield then
+            Rayfield:Notify({
+                Title = "Auto Rank Up Class",
+                Content = "Disabled.",
+                Duration = 5,
+                Image = 4483362458
+            })
+        end
         if _G.ClassStatusLabel then 
             _G.ClassStatusLabel:Set("Status: Idle") 
         end
