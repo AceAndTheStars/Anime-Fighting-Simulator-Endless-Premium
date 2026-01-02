@@ -1,10 +1,24 @@
 -- ClassesPremium.lua - External Classes System Module (Simplified)
 
--- Get Rayfield from global if available
-local Rayfield = _G.Rayfield or (function()
-    warn("[ClassesPremium] Rayfield not found in _G, notifications may not work")
-    return nil
-end)()
+-- Helper function to safely get Rayfield (check when needed, not at load time)
+local function getRayfield()
+    return _G.Rayfield
+end
+
+-- Helper function to safely notify (prevents callback errors)
+local function safeNotify(title, content, duration, image)
+    local rayfield = getRayfield()
+    if rayfield and rayfield.Notify and type(rayfield.Notify) == "function" then
+        pcall(function()
+            rayfield:Notify({
+                Title = title,
+                Content = content,
+                Duration = duration or 5,
+                Image = image or 4483362458
+            })
+        end)
+    end
+end
 
 -- Class name mapping
 local ClassNames = {
@@ -75,13 +89,8 @@ task.spawn(function()
             end
 
             -- Notify on rank up
-            if className ~= previousClass and previousClass ~= "" and Rayfield then
-                Rayfield:Notify({
-                    Title = "Class Rank Up!",
-                    Content = "Successfully ranked up to " .. className .. "!",
-                    Duration = 8,
-                    Image = 4483362458
-                })
+            if className ~= previousClass and previousClass ~= "" then
+                safeNotify("Class Rank Up!", "Successfully ranked up to " .. className .. "!", 8, 4483362458)
             end
             previousClass = className
         else
@@ -98,14 +107,7 @@ _G.ToggleAutoRankUpClass = function(enabled)
         if _G.AutoRankUpLoop then return end
         _G.AutoRankUpLoop = true
 
-        if Rayfield then
-            Rayfield:Notify({
-                Title = "Auto Rank Up Class",
-                Content = "Enabled! Attempting to rank up every ~2 seconds.",
-                Duration = 7,
-                Image = 4483362458
-            })
-        end
+        safeNotify("Auto Rank Up Class", "Enabled! Attempting to rank up every ~2 seconds.", 7, 4483362458)
         if _G.ClassStatusLabel then 
             _G.ClassStatusLabel:Set("Status: ACTIVE (working...)") 
         end
@@ -185,14 +187,7 @@ _G.ToggleAutoRankUpClass = function(enabled)
                         if _G.ClassStatusLabel then 
                             _G.ClassStatusLabel:Set("Status: ERROR - Check console") 
                         end
-                        if Rayfield then
-                            Rayfield:Notify({
-                                Title = "Auto Rank Up Warning",
-                                Content = "Having trouble ranking up. Check console (F9) for details.",
-                                Duration = 8,
-                                Image = 4483362458
-                            })
-                        end
+                        safeNotify("Auto Rank Up Warning", "Having trouble ranking up. Check console (F9) for details.", 8, 4483362458)
                         errorCount = 0 -- Reset to avoid spam
                     end
                 end
@@ -201,14 +196,7 @@ _G.ToggleAutoRankUpClass = function(enabled)
 
     else
         _G.AutoRankUpLoop = false
-        if Rayfield then
-            Rayfield:Notify({
-                Title = "Auto Rank Up Class",
-                Content = "Disabled.",
-                Duration = 5,
-                Image = 4483362458
-            })
-        end
+        safeNotify("Auto Rank Up Class", "Disabled.", 5, 4483362458)
         if _G.ClassStatusLabel then 
             _G.ClassStatusLabel:Set("Status: Idle") 
         end
