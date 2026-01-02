@@ -112,19 +112,24 @@ spawn(function()
                     local chakra = getPlayerStat(player, "Chakra")
                     
                     -- Calculate percentages
-                    local strPercent = math.floor((strength / requiredStat) * 100)
-                    local durPercent = math.floor((durability / requiredStat) * 100)
-                    local chakPercent = math.floor((chakra / requiredStat) * 100)
+                    local strPercent = math.min(100, math.floor((strength / requiredStat) * 100))
+                    local durPercent = math.min(100, math.floor((durability / requiredStat) * 100))
+                    local chakPercent = math.min(100, math.floor((chakra / requiredStat) * 100))
+                    
+                    -- Calculate overall progress (average of all three stats)
+                    local overallPercent = math.floor((strPercent + durPercent + chakPercent) / 3)
                     
                     -- Check if all requirements are met
                     local allMet = strength >= requiredStat and durability >= requiredStat and chakra >= requiredStat
                     
+                    -- Format the progress text
                     local progressText = string.format(
-                        "STR: %s/%s (%d%%) | DUR: %s/%s (%d%%) | CHK: %s/%s (%d%%)%s",
-                        formatNumber(strength), formatNumber(requiredStat), strPercent,
-                        formatNumber(durability), formatNumber(requiredStat), durPercent,
-                        formatNumber(chakra), formatNumber(requiredStat), chakPercent,
-                        allMet and " ✓ READY!" or ""
+                        "STR: %s → %s | DUR: %s → %s | CHK: %s → %s [%d%% Complete]%s",
+                        formatNumber(strength), formatNumber(requiredStat),
+                        formatNumber(durability), formatNumber(requiredStat),
+                        formatNumber(chakra), formatNumber(requiredStat),
+                        overallPercent,
+                        allMet and " ✓" or ""
                     )
                     
                     _G.ProgressLabel:Set(progressText)
