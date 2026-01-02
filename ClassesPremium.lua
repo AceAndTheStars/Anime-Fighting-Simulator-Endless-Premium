@@ -71,6 +71,9 @@ local function getPlayerStat(player, statName)
     end
 end
 
+-- Initialize global variable
+_G.ShowClassProgress = false
+
 -- Live Updater (Current Class + Progress)
 spawn(function()
     local previousClass = ""
@@ -101,7 +104,7 @@ spawn(function()
             previousClass = className
 
             -- Progress (only if enabled and we know the next rank requirement)
-            if _G.ShowClassProgress and _G.ProgressLabel then
+            if _G.ShowClassProgress == true and _G.ProgressLabel then
                 local nextClass = classValue + 1
                 local requiredStat = ClassRequirements[nextClass]
                 
