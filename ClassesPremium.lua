@@ -19,17 +19,55 @@ local ClassNames = {
 -- Live Current Class Updater
 task.spawn(function()
     local previousClass = ""
+    local getClassValue = nil -- Cache the working function
+    
     while true do
         task.wait(2)
 
         local player = game.Players.LocalPlayer
+        local classValue = nil
+        local classSuccess = false
 
-        -- Current Class Detection
-        local classSuccess, classValue = pcall(function()
-            return player.OtherData.Class.Value
-        end)
+        -- Try multiple paths to find class value (cache the working one)
+        if getClassValue then
+            -- Use cached function
+            classSuccess, classValue = pcall(getClassValue)
+        else
+            -- Try common paths
+            local pathsToTry = {
+                function() return player.OtherData.Class.Value end,
+                function() return player.Data.Class.Value end,
+                function() return player.leaderstats.Class.Value end,
+                function() return player.Stats.Class.Value end,
+                function() return player.PlayerData.Class.Value end,
+                function() 
+                    local otherData = player:FindFirstChild("OtherData")
+                    if otherData then
+                        local classObj = otherData:FindFirstChild("Class")
+                        if classObj then return classObj.Value end
+                    end
+                end,
+                function()
+                    local data = player:FindFirstChild("Data")
+                    if data then
+                        local classObj = data:FindFirstChild("Class")
+                        if classObj then return classObj.Value end
+                    end
+                end
+            }
+            
+            for _, tryFunc in ipairs(pathsToTry) do
+                classSuccess, classValue = pcall(tryFunc)
+                
+                if classSuccess and classValue and type(classValue) == "number" then
+                    getClassValue = tryFunc
+                    print("[AFSE Premium] Found class value: " .. tostring(classValue))
+                    break
+                end
+            end
+        end
 
-        if classSuccess and classValue then
+        if classSuccess and classValue and type(classValue) == "number" then
             local className = ClassNames[classValue] or ("Unknown (" .. tostring(classValue) .. ")")
             
             if _G.CurrentClassLabel then
@@ -48,7 +86,7 @@ task.spawn(function()
             previousClass = className
         else
             if _G.CurrentClassLabel then
-                _G.CurrentClassLabel:Set("Current Class: Error Detecting")
+                _G.CurrentClassLabel:Set("Current Class: Detecting...")
             end
         end
     end
@@ -73,14 +111,16 @@ _G.ToggleAutoRankUpClass = function(enabled)
         end
 
         task.spawn(function()
-            -- Try to find the correct remote (common names in AFSE-like games)
+            -- Use the standard RemoteEvent like other modules
             local Remotes = game:GetService("ReplicatedStorage"):WaitForChild("Remotes")
+            local RemoteEvent = Remotes:WaitForChild("RemoteEvent")
+            
+            -- Try to find a specific class remote first
+            local classRemote = nil
             local possibleRemoteNames = {
                 "Class", "RankUpClass", "UpgradeClass", "ClassRankUp", 
                 "RankUp", "RequestClass", "ClassUpgrade", "ClassRemote"
             }
-
-            local classRemote = nil
 
             for _, name in ipairs(possibleRemoteNames) do
                 local found = Remotes:FindFirstChild(name)
@@ -91,34 +131,71 @@ _G.ToggleAutoRankUpClass = function(enabled)
                 end
             end
 
+            -- If no specific remote found, use RemoteEvent with class method
             if not classRemote then
-                warn("[AFSE Premium] WARNING: No class rank-up remote found in Remotes!")
-                if Rayfield then
-                    Rayfield:Notify({
-                        Title = "Auto Rank Up Error",
-                        Content = "Couldn't find the class rank-up remote.\nCheck console (F9) for details.",
-                        Duration = 12,
-                        Image = 4483362458
-                    })
-                end
-                _G.AutoRankUpLoop = false
-                if _G.ClassStatusLabel then 
-                    _G.ClassStatusLabel:Set("Status: FAILED - Remote not found") 
-                end
-                return
+                classRemote = RemoteEvent
+                print("[AFSE Premium] Using standard RemoteEvent for class rank-up")
             end
 
             -- Main loop
+            local methodNames = {"RankUpClass", "Class", "UpgradeClass", "RankUp"}
+            local currentMethodIndex = 1
+            local lastError = nil
+            local errorCount = 0
+            
             while _G.AutoRankUpLoop do
                 task.wait(2) -- safer delay to avoid kick/rate limit
 
-                pcall(function()
+                local success, err = pcall(function()
                     if classRemote:IsA("RemoteEvent") then
-                        classRemote:FireServer()
+                        if classRemote == RemoteEvent then
+                            -- Use RemoteEvent with method name like other features
+                            local methodName = methodNames[currentMethodIndex] or methodNames[1]
+                            RemoteEvent:FireServer(methodName)
+                        else
+                            -- Specific class remote, try without args first
+                            classRemote:FireServer()
+                        end
                     elseif classRemote:IsA("RemoteFunction") then
-                        classRemote:InvokeServer("RankUp") -- fallback arg if function
+                        -- Try different argument patterns
+                        local methodName = methodNames[currentMethodIndex] or methodNames[1]
+                        classRemote:InvokeServer(methodName)
                     end
                 end)
+                
+                if success then
+                    errorCount = 0 -- Reset error count on success
+                    if _G.ClassStatusLabel then 
+                        _G.ClassStatusLabel:Set("Status: ACTIVE (working...)") 
+                    end
+                else
+                    errorCount = errorCount + 1
+                    lastError = tostring(err)
+                    warn("[AFSE Premium] Class rank-up error (" .. errorCount .. "): " .. lastError)
+                    
+                    -- Try next method name if current one fails
+                    if errorCount >= 3 then
+                        currentMethodIndex = (currentMethodIndex % #methodNames) + 1
+                        errorCount = 0
+                        print("[AFSE Premium] Trying method: " .. methodNames[currentMethodIndex])
+                    end
+                    
+                    -- If all methods fail consistently, show error
+                    if errorCount >= 10 then
+                        if _G.ClassStatusLabel then 
+                            _G.ClassStatusLabel:Set("Status: ERROR - Check console") 
+                        end
+                        if Rayfield then
+                            Rayfield:Notify({
+                                Title = "Auto Rank Up Warning",
+                                Content = "Having trouble ranking up. Check console (F9) for details.",
+                                Duration = 8,
+                                Image = 4483362458
+                            })
+                        end
+                        errorCount = 0 -- Reset to avoid spam
+                    end
+                end
             end
         end)
 
