@@ -104,40 +104,47 @@ spawn(function()
             previousClass = className
 
             -- Progress (only if enabled and we know the next rank requirement)
-            if _G.ShowClassProgress == true and _G.ProgressLabel then
-                local nextClass = classValue + 1
-                local requiredStat = ClassRequirements[nextClass]
-                
-                if requiredStat then
-                    -- Get current stats
-                    local strength = getPlayerStat(player, "Strength")
-                    local durability = getPlayerStat(player, "Durability")
-                    local chakra = getPlayerStat(player, "Chakra")
+            if _G.ShowClassProgress == true then
+                if _G.ProgressLabel then
+                    local nextClass = classValue + 1
+                    local requiredStat = ClassRequirements[nextClass]
                     
-                    -- Calculate percentages
-                    local strPercent = math.min(100, math.floor((strength / requiredStat) * 100))
-                    local durPercent = math.min(100, math.floor((durability / requiredStat) * 100))
-                    local chakPercent = math.min(100, math.floor((chakra / requiredStat) * 100))
-                    
-                    -- Calculate overall progress (average of all three stats)
-                    local overallPercent = math.floor((strPercent + durPercent + chakPercent) / 3)
-                    
-                    -- Check if all requirements are met
-                    local allMet = strength >= requiredStat and durability >= requiredStat and chakra >= requiredStat
-                    
-                    -- Format the progress text
-                    local progressText = string.format(
-                        "STR: %s → %s | DUR: %s → %s | CHK: %s → %s [%d%% Complete]%s",
-                        formatNumber(strength), formatNumber(requiredStat),
-                        formatNumber(durability), formatNumber(requiredStat),
-                        formatNumber(chakra), formatNumber(requiredStat),
-                        overallPercent,
-                        allMet and " ✓" or ""
-                    )
-                    
-                    _G.ProgressLabel:Set(progressText)
-                else
-                    _G.ProgressLabel:Set("Progress: MAX RANK REACHED!")
+                    if requiredStat then
+                        -- Get current stats
+                        local strength = getPlayerStat(player, "Strength")
+                        local durability = getPlayerStat(player, "Durability")
+                        local chakra = getPlayerStat(player, "Chakra")
+                        
+                        -- Calculate percentages
+                        local strPercent = math.min(100, math.floor((strength / requiredStat) * 100))
+                        local durPercent = math.min(100, math.floor((durability / requiredStat) * 100))
+                        local chakPercent = math.min(100, math.floor((chakra / requiredStat) * 100))
+                        
+                        -- Calculate overall progress (average of all three stats)
+                        local overallPercent = math.floor((strPercent + durPercent + chakPercent) / 3)
+                        
+                        -- Check if all requirements are met
+                        local allMet = strength >= requiredStat and durability >= requiredStat and chakra >= requiredStat
+                        
+                        -- Format the progress text
+                        local progressText = string.format(
+                            "STR: %s → %s | DUR: %s → %s | CHK: %s → %s [%d%% Complete]%s",
+                            formatNumber(strength), formatNumber(requiredStat),
+                            formatNumber(durability), formatNumber(requiredStat),
+                            formatNumber(chakra), formatNumber(requiredStat),
+                            overallPercent,
+                            allMet and " ✓" or ""
+                        )
+                        
+                        _G.ProgressLabel:Set(progressText)
+                    else
+                        _G.ProgressLabel:Set("Progress: MAX RANK REACHED!")
+                    end
+                end
+            else
+                -- Always reset to disabled when toggle is off
+                if _G.ProgressLabel then
+                    _G.ProgressLabel:Set("Progress: Disabled")
                 end
             end
         else
@@ -232,12 +239,31 @@ end
 -- Display Progress Toggle
 _G.ToggleDisplayProgress = function(enabled)
     _G.ShowClassProgress = enabled
-    if _G.ProgressLabel then
-        if enabled then
-            _G.ProgressLabel:Set("Progress: Loading...")
-        else
+    
+    if enabled then
+        -- Immediately show that it's loading
+        if _G.ProgressLabel then
+            _G.ProgressLabel:Set("Progress: Loading stats...")
+        end
+        
+        Rayfield:Notify({
+            Title = "Display Progress",
+            Content = "Enabled! Stats will update every 2 seconds.",
+            Duration = 5,
+            Image = 4483362458
+        })
+    else
+        -- Immediately disable display
+        if _G.ProgressLabel then
             _G.ProgressLabel:Set("Progress: Disabled")
         end
+        
+        Rayfield:Notify({
+            Title = "Display Progress",
+            Content = "Disabled.",
+            Duration = 3,
+            Image = 4483362458
+        })
     end
 end
 
