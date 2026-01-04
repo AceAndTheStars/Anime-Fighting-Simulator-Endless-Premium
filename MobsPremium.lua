@@ -1,85 +1,28 @@
--- Anime Fighting Simulator Endless - Fast Boss Farming (Wind Grimoire Method)
-local player = game.Players.LocalPlayer
-local RemoteFunction = game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("RemoteFunction")
+-- Mobs Tab
+local MobsTab = Window:CreateTab("Mobs", "swords") -- Or "skull" if you want something darker
+MobsTab:CreateSection("Boss / Mob Farming (Fast)")
 
-local farmStates = {
-    Sarka = false,
-    Gen = false,
-    Igicho = false,
-    Booh = false,
-    Remgonuk = false,
-    Saytamu = false
-}
-
-local bossConfigs = {
-    Sarka = {
-        pos = Vector3.new(277.47, 60.99, 305.44),
-        look = Vector3.new(-0.017, -0.000, -1.000)
-    },
-    Gen = {
-        pos = Vector3.new(-424.065, 60.999, 723.472),
-        look = Vector3.new(1.000, 0.000, 0.026)
-    },
-    Igicho = {
-        pos = Vector3.new(535.10, 60.99, -1538.90),
-        look = Vector3.new(1.000, 0.000, 0.017)
-    },
-    Booh = {
-        pos = Vector3.new(931.16, 242.99, 919.85),
-        look = Vector3.new(-0.259, -0.000, 0.966)
-    },
-    Remgonuk = {
-        pos = Vector3.new(3077.19, 59.99, -491.97),
-        look = Vector3.new(-0.933, 0.000, -0.122)
-    },
-    Saytamu = {
-        pos = Vector3.new(527.87, 61.00, 1761.96),
-        look = Vector3.new(-1.000, -0.000, 0.000)
-    }
-}
-
-local function startFarm(bossName)
-    if farmStates[bossName] then return end
-    farmStates[bossName] = true
-
-    local config = bossConfigs[bossName]
-    local character = player.Character or player.CharacterAdded:Wait()
-    local hrp = character:WaitForChild("HumanoidRootPart")
-
-    -- Teleport with precise rotation
-    local targetCFrame = CFrame.new(config.pos, config.pos + config.look)
-    hrp.CFrame = targetCFrame
-
-    -- Summon Wind Grimoire once
-    pcall(function()
-        RemoteFunction:InvokeServer("SummonSpecial", "Grimoires")
-    end)
-
-    -- Spam Z ability
-    task.spawn(function()
-        while farmStates[bossName] do
-            pcall(function()
-                RemoteFunction:InvokeServer("UseSpecialPower", Enum.KeyCode.Z)
-            end)
-            task.wait(1.55)
-        end
-    end)
-end
-
-local function stopFarm(bossName)
-    farmStates[bossName] = false
-end
-
--- Global toggles
-_G.ToggleAutoFarmSarka = function(v) if v then startFarm("Sarka") else stopFarm("Sarka") end end
-_G.ToggleAutoFarmGen = function(v) if v then startFarm("Gen") else stopFarm("Gen") end end
-_G.ToggleAutoFarmIgicho = function(v) if v then startFarm("Igicho") else stopFarm("Igicho") end end
-_G.ToggleAutoFarmBooh = function(v) if v then startFarm("Booh") else stopFarm("Booh") end end
-_G.ToggleAutoFarmRemgonuk = function(v) if v then startFarm("Remgonuk") else stopFarm("Remgonuk") end end
-_G.ToggleAutoFarmSaytamu = function(v) if v then startFarm("Saytamu") else stopFarm("Saytamu") end end
-
-game.StarterGui:SetCore("SendNotification", {
-    Title = "Mobs Module Loaded",
-    Text = "Fast boss farming with Wind Grimoire ready!",
-    Duration = 6
+MobsTab:CreateButton({
+    Name = "Get White Eyes Bloodline",
+    Callback = function()
+        local player = game.Players.LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+        Rayfield:Notify({
+            Title = "White Eyes Bloodline",
+            Content = "Teleporting to White Eyes Bloodline location...",
+            Duration = 5,
+            Image = 4483362458
+        })
+        -- Replace this CFrame with the actual location of White Eyes Bloodline when you find it
+        humanoidRootPart.CFrame = CFrame.new(0, 100, 0) -- Placeholder - update with real coords
+    end
 })
+
+-- New clean toggles - ready for your completely remade farming logic
+MobsTab:CreateToggle({ Name = "Auto Farm Sarka (fast)", CurrentValue = false, Flag = "AutoFarmSarka", Callback = safeToggle("ToggleAutoFarmSarka") })
+MobsTab:CreateToggle({ Name = "Auto Farm Gen (fast)", CurrentValue = false, Flag = "AutoFarmGen", Callback = safeToggle("ToggleAutoFarmGen") })
+MobsTab:CreateToggle({ Name = "Auto Farm Igicho (fast)", CurrentValue = false, Flag = "AutoFarmIgicho", Callback = safeToggle("ToggleAutoFarmIgicho") })
+MobsTab:CreateToggle({ Name = "Auto Farm Booh (fast)", CurrentValue = false, Flag = "AutoFarmBooh", Callback = safeToggle("ToggleAutoFarmBooh") })
+MobsTab:CreateToggle({ Name = "Auto Farm Remgonuk (fast)", CurrentValue = false, Flag = "AutoFarmRemgonuk", Callback = safeToggle("ToggleAutoFarmRemgonuk") })
+MobsTab:CreateToggle({ Name = "Auto Farm Saytamu (fast)", CurrentValue = false, Flag = "AutoFarmSaytamu", Callback = safeToggle("ToggleAutoFarmSaytamu") })
