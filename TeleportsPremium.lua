@@ -69,7 +69,7 @@ local function getTrainingAreaDisplayNames()
         table.insert(displayNames, entry.display)
     end
     
-    return areas, displayNames  -- Return both for easier use
+    return areas, displayNames
 end
 
 local function isPlayerClipped()
@@ -120,11 +120,9 @@ _G.CreateTeleportsDropdown = function(tab)
         MultipleOptions = false,
         Flag = "TrainingAreaTeleport",
         Callback = function(selected)
-            -- Rayfield ALWAYS passes a table, even for single selection
             local selectedDisplayName = type(selected) == "table" and selected[1] or selected
             if not selectedDisplayName then return end
 
-            -- Find the matching area entry
             local targetOriginalName
             for _, entry in ipairs(allAreas) do
                 if entry.display == selectedDisplayName then
@@ -185,17 +183,15 @@ _G.CreateTeleportsDropdown = function(tab)
                 Duration = 3
             })
             
-            -- Refresh dropdown after teleport
             task.spawn(function()
                 task.wait(1)
                 local newAreas, newDisplayNames = getTrainingAreaDisplayNames()
-                allAreas = newAreas  -- Update cache
+                allAreas = newAreas
                 trainingDropdown:Refresh(newDisplayNames, true)
             end)
         end
     })
 
-    -- Auto-refresh every 5 seconds
     task.spawn(function()
         while task.wait(5) do
             pcall(function()
@@ -208,13 +204,13 @@ _G.CreateTeleportsDropdown = function(tab)
         end
     end)
 
-    -- === NEW: Quest NPCs Teleport Dropdown ===
+    -- === Quest NPCs Teleport Dropdown (Direct Teleport) ===
 
     tab:CreateSection("Quest NPCs")
 
     tab:CreateParagraph({ 
         Title = "Quest NPCs Teleports", 
-        Content = "Select a quest NPC below to teleport to it." 
+        Content = "Select a quest NPC below to teleport directly to it." 
     })
     tab:CreateParagraph({ 
         Title = "Note", 
@@ -301,20 +297,12 @@ _G.CreateTeleportsDropdown = function(tab)
                 targetCFrame = targetNPC.CFrame
             end
 
-            -- Teleport 5 studs in front of the NPC (facing it)
-            local teleportCFrame = targetCFrame + targetCFrame.LookVector * 5
-
-            hrp.CFrame = teleportCFrame
-
-            task.wait(0.2)
-
-            if isPlayerClipped() then
-                hrp.CFrame = teleportCFrame + Vector3.new(0, 110, 0)
-            end
+            -- Direct teleport to the NPC's position
+            hrp.CFrame = targetCFrame
 
             Rayfield:Notify({
                 Title = "Teleported!", 
-                Content = "Teleported to" .. selectedName, 
+                Content = "Directly to " .. selectedName, 
                 Duration = 3
             })
 
@@ -328,7 +316,7 @@ _G.CreateTeleportsDropdown = function(tab)
         end
     })
 
-    -- Auto-refresh every 10 seconds for quest NPCs
+    -- Auto-refresh every 10 seconds
     task.spawn(function()
         while task.wait(10) do
             pcall(function()
@@ -346,7 +334,7 @@ end
 pcall(function()
     game.StarterGui:SetCore("SendNotification", {
         Title = "Teleports Module Loaded",
-        Text = "Dynamic training areas teleporter ready!",
+        Text = "Dynamic training areas & quest NPCs teleporter ready",
         Duration = 5
     })
 end)
