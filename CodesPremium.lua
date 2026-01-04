@@ -29,7 +29,18 @@ local codes = {
     "Krampus",
     "1MVisits",
     "10kLikes",
-    "ChristmasTime"
+    "ChristmasTime",
+    "HappyNewYear",
+    "50kLikes",
+    "10MVisits",
+    "NewBloodlines",
+    "NewSpecials",
+    "MinorBugs",
+    "BadActors",
+    "JanuaryIncident",
+    "15kLikes",
+    "25kLikes",
+    "30kLikes"
 }
 
 print("Starting to redeem " .. #codes .. " codes...")
