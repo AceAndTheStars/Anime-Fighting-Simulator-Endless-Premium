@@ -55,8 +55,9 @@ local function getTrainingAreaDisplayNames()
         if area:IsA("BasePart") or area:IsA("Model") then
             local num = tonumber(area.Name)
             if num then
-                local displayName = nameMap[area.Name] or area.Name
-                table.insert(areas, {num = num, display = displayName .. " (" .. area.Name .. ")"})
+                local prettyName = nameMap[area.Name] or ("[Unknown] (" .. area.Name .. ")")
+                local displayName = prettyName .. " (" .. area.Name .. ")"
+                table.insert(areas, {num = num, display = displayName, original = area.Name})
             end
         end
     end
@@ -68,12 +69,7 @@ local function getTrainingAreaDisplayNames()
         table.insert(displayNames, entry.display)
     end
     
-    return displayNames
-end
-
-local function getOriginalNameFromDisplay(displayName)
-    local original = displayName:match("%((%d+)%)$")
-    return original
+    return areas, displayNames  -- Return both for easier use
 end
 
 local function isPlayerClipped()
@@ -100,24 +96,53 @@ local function isPlayerClipped()
     return false
 end
 
--- Public function to create the dropdown in the given tab
+-- Public function to create the dropdown
 _G.CreateTeleportsDropdown = function(tab)
+    if not tab then return end
+
     tab:CreateSection("Training Areas")
 
-    tab:CreateParagraph({ Title = "Teleports", Content = "Select a training area below to teleport there." })
-    tab:CreateParagraph({ Title = "Note", Content = "If you can't find your area in the list, explore a bit of the map to load it in!" })
+    tab:CreateParagraph({ 
+        Title = "Teleports", 
+        Content = "Select a training area below to teleport there." 
+    })
+    tab:CreateParagraph({ 
+        Title = "Note", 
+        Content = "If you can't find your area in the list, explore a bit of the map to load it in!" 
+    })
+
+    local allAreas, initialDisplayNames = getTrainingAreaDisplayNames()
 
     local trainingDropdown = tab:CreateDropdown({
         Name = "Training Areas",
-        Options = getTrainingAreaDisplayNames(),
+        Options = initialDisplayNames,
         CurrentOption = {"Select an area"},
         MultipleOptions = false,
         Flag = "TrainingAreaTeleport",
-        Callback = function(selectedDisplayName)
-            local targetOriginalName = getOriginalNameFromDisplay(selectedDisplayName[1] or selectedDisplayName)
-            if not targetOriginalName then return end
-            
-            local character = game.Players.LocalPlayer.Character
+        Callback = function(selected)
+            -- Rayfield ALWAYS passes a table, even for single selection
+            local selectedDisplayName = type(selected) == "table" and selected[1] or selected
+            if not selectedDisplayName then return end
+
+            -- Find the matching area entry
+            local targetOriginalName
+            for _, entry in ipairs(allAreas) do
+                if entry.display == selectedDisplayName then
+                    targetOriginalName = entry.original
+                    break
+                end
+            end
+
+            if not targetOriginalName then
+                Rayfield:Notify({
+                    Title = "Error",
+                    Content = "Could not find matching area!",
+                    Duration = 5
+                })
+                return
+            end
+
+            local character = game.Players.LocalPlayer.Character or game.Players.LocalPlayer.CharacterAdded:Wait()
             if not character or not character:FindFirstChild("HumanoidRootPart") then 
                 Rayfield:Notify({Title = "Error", Content = "Character not loaded!", Duration = 5})
                 return 
@@ -126,7 +151,11 @@ _G.CreateTeleportsDropdown = function(tab)
             
             local area = trainingFolder:FindFirstChild(targetOriginalName)
             if not area then
-                Rayfield:Notify({Title = "Not Loaded", Content = "Area not loaded yet. Wait a few seconds or move closer.", Duration = 5})
+                Rayfield:Notify({
+                    Title = "Not Loaded", 
+                    Content = "Area '" .. selectedDisplayName .. "' not loaded yet. Explore nearby!", 
+                    Duration = 6
+                })
                 return
             end
             
@@ -150,26 +179,174 @@ _G.CreateTeleportsDropdown = function(tab)
                 hrp.CFrame = targetCFrame + Vector3.new(0, 110, 0)
             end
             
-            Rayfield:Notify({Title = "Teleported", Content = selectedDisplayName[1] or selectedDisplayName, Duration = 3})
+            Rayfield:Notify({
+                Title = "Teleported!", 
+                Content = selectedDisplayName, 
+                Duration = 3
+            })
             
-            local newValues = getTrainingAreaDisplayNames()
-            trainingDropdown:Refresh(newValues, true)
+            -- Refresh dropdown after teleport
+            task.spawn(function()
+                task.wait(1)
+                local newAreas, newDisplayNames = getTrainingAreaDisplayNames()
+                allAreas = newAreas  -- Update cache
+                trainingDropdown:Refresh(newDisplayNames, true)
+            end)
         end
     })
 
-    -- Auto-refresh
+    -- Auto-refresh every 5 seconds
     task.spawn(function()
         while task.wait(5) do
-            local newValues = getTrainingAreaDisplayNames()
-            if #newValues > 0 then
-                trainingDropdown:Refresh(newValues, true)
+            pcall(function()
+                local newAreas, newDisplayNames = getTrainingAreaDisplayNames()
+                if #newDisplayNames > 0 then
+                    allAreas = newAreas
+                    trainingDropdown:Refresh(newDisplayNames, true)
+                end
+            end)
+        end
+    end)
+
+    -- === NEW: Quest NPCs Teleport Dropdown ===
+
+    tab:CreateSection("Quest NPCs")
+
+    tab:CreateParagraph({ 
+        Title = "Quest NPCs Teleports", 
+        Content = "Select a quest NPC below to teleport to it." 
+    })
+    tab:CreateParagraph({ 
+        Title = "Note", 
+        Content = "If an NPC is not in the list, it may not be loaded yet. Move around the map to load more areas!" 
+    })
+
+    local questFolder = game:GetService("Workspace").Scriptable.NPC.Quest
+
+    local function getQuestNPCs()
+        local npcs = {}
+        for _, npc in ipairs(questFolder:GetChildren()) do
+            if npc:IsA("Model") or npc:IsA("BasePart") then
+                local display = npc.Name
+                table.insert(npcs, {display = display, object = npc})
             end
+        end
+        table.sort(npcs, function(a, b) return a.display < b.display end)
+        
+        local displayNames = {}
+        for _, entry in ipairs(npcs) do
+            table.insert(displayNames, entry.display)
+        end
+        
+        return npcs, displayNames
+    end
+
+    local allNPCs, initialNPCNames = getQuestNPCs()
+
+    local questDropdown = tab:CreateDropdown({
+        Name = "Quest NPCs",
+        Options = initialNPCNames,
+        CurrentOption = {"Select an NPC"},
+        MultipleOptions = false,
+        Flag = "QuestNPCTeleport",
+        Callback = function(selected)
+            local selectedName = type(selected) == "table" and selected[1] or selected
+            if not selectedName then return end
+
+            local targetNPC = nil
+            for _, entry in ipairs(allNPCs) do
+                if entry.display == selectedName then
+                    targetNPC = entry.object
+                    break
+                end
+            end
+
+            if not targetNPC then
+                Rayfield:Notify({
+                    Title = "Error",
+                    Content = "Could not find matching NPC!",
+                    Duration = 5
+                })
+                return
+            end
+
+            local character = game.Players.LocalPlayer.Character or game.Players.LocalPlayer.CharacterAdded:Wait()
+            if not character or not character:FindFirstChild("HumanoidRootPart") then 
+                Rayfield:Notify({Title = "Error", Content = "Character not loaded!", Duration = 5})
+                return 
+            end
+            local hrp = character.HumanoidRootPart
+
+            local npcInFolder = questFolder:FindFirstChild(selectedName)
+            if not npcInFolder then
+                Rayfield:Notify({
+                    Title = "Not Loaded", 
+                    Content = "NPC '" .. selectedName .. "' not loaded yet. Explore nearby!", 
+                    Duration = 6
+                })
+                return
+            end
+
+            local targetCFrame
+            if targetNPC:IsA("Model") then
+                if targetNPC:FindFirstChild("HumanoidRootPart") then
+                    targetCFrame = targetNPC.HumanoidRootPart.CFrame
+                elseif targetNPC.PrimaryPart then
+                    targetCFrame = targetNPC.PrimaryPart.CFrame
+                else
+                    local cf, _ = targetNPC:GetBoundingBox()
+                    targetCFrame = cf
+                end
+            else
+                targetCFrame = targetNPC.CFrame
+            end
+
+            -- Teleport 5 studs in front of the NPC (facing it)
+            local teleportCFrame = targetCFrame + targetCFrame.LookVector * 5
+
+            hrp.CFrame = teleportCFrame
+
+            task.wait(0.2)
+
+            if isPlayerClipped() then
+                hrp.CFrame = teleportCFrame + Vector3.new(0, 110, 0)
+            end
+
+            Rayfield:Notify({
+                Title = "Teleported!", 
+                Content = "Teleported to" .. selectedName, 
+                Duration = 3
+            })
+
+            -- Refresh dropdown after teleport
+            task.spawn(function()
+                task.wait(1)
+                local newNPCs, newNames = getQuestNPCs()
+                allNPCs = newNPCs
+                questDropdown:Refresh(newNames, true)
+            end)
+        end
+    })
+
+    -- Auto-refresh every 10 seconds for quest NPCs
+    task.spawn(function()
+        while task.wait(10) do
+            pcall(function()
+                local newNPCs, newNames = getQuestNPCs()
+                if #newNames > 0 then
+                    allNPCs = newNPCs
+                    questDropdown:Refresh(newNames, true)
+                end
+            end)
         end
     end)
 end
 
-game.StarterGui:SetCore("SendNotification", {
-    Title = "Teleports Module Loaded",
-    Text = "Dynamic training areas teleporter ready!",
-    Duration = 5
-})
+-- Optional loading notification
+pcall(function()
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "Teleports Module Loaded",
+        Text = "Dynamic training areas teleporter ready!",
+        Duration = 5
+    })
+end)
