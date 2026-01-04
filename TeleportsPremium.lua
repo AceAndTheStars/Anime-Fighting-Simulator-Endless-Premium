@@ -132,28 +132,17 @@ _G.CreateTeleportsDropdown = function(tab)
             end
 
             if not targetOriginalName then
-                Rayfield:Notify({
-                    Title = "Error",
-                    Content = "Could not find matching area!",
-                    Duration = 5
-                })
                 return
             end
 
             local character = game.Players.LocalPlayer.Character or game.Players.LocalPlayer.CharacterAdded:Wait()
             if not character or not character:FindFirstChild("HumanoidRootPart") then 
-                Rayfield:Notify({Title = "Error", Content = "Character not loaded!", Duration = 5})
                 return 
             end
             local hrp = character.HumanoidRootPart
             
             local area = trainingFolder:FindFirstChild(targetOriginalName)
             if not area then
-                Rayfield:Notify({
-                    Title = "Not Loaded", 
-                    Content = "Area '" .. selectedDisplayName .. "' not loaded yet. Explore nearby!", 
-                    Duration = 6
-                })
                 return
             end
             
@@ -177,12 +166,7 @@ _G.CreateTeleportsDropdown = function(tab)
                 hrp.CFrame = targetCFrame + Vector3.new(0, 110, 0)
             end
             
-            Rayfield:Notify({
-                Title = "Teleported!", 
-                Content = selectedDisplayName, 
-                Duration = 3
-            })
-            
+            -- Refresh dropdown after teleport
             task.spawn(function()
                 task.wait(1)
                 local newAreas, newDisplayNames = getTrainingAreaDisplayNames()
@@ -258,28 +242,17 @@ _G.CreateTeleportsDropdown = function(tab)
             end
 
             if not targetNPC then
-                Rayfield:Notify({
-                    Title = "Error",
-                    Content = "Could not find matching NPC!",
-                    Duration = 5
-                })
                 return
             end
 
             local character = game.Players.LocalPlayer.Character or game.Players.LocalPlayer.CharacterAdded:Wait()
             if not character or not character:FindFirstChild("HumanoidRootPart") then 
-                Rayfield:Notify({Title = "Error", Content = "Character not loaded!", Duration = 5})
                 return 
             end
             local hrp = character.HumanoidRootPart
 
             local npcInFolder = questFolder:FindFirstChild(selectedName)
             if not npcInFolder then
-                Rayfield:Notify({
-                    Title = "Not Loaded", 
-                    Content = "NPC '" .. selectedName .. "' not loaded yet. Explore nearby!", 
-                    Duration = 6
-                })
                 return
             end
 
@@ -297,14 +270,7 @@ _G.CreateTeleportsDropdown = function(tab)
                 targetCFrame = targetNPC.CFrame
             end
 
-            -- Direct teleport to the NPC's position
             hrp.CFrame = targetCFrame
-
-            Rayfield:Notify({
-                Title = "Teleported!", 
-                Content = "Directly to " .. selectedName, 
-                Duration = 3
-            })
 
             -- Refresh dropdown after teleport
             task.spawn(function()
@@ -330,11 +296,4 @@ _G.CreateTeleportsDropdown = function(tab)
     end)
 end
 
--- Optional loading notification
-pcall(function()
-    game.StarterGui:SetCore("SendNotification", {
-        Title = "Teleports Module Loaded",
-        Text = "Dynamic training areas & quest NPCs teleporter ready",
-        Duration = 5
-    })
-end)
+-- Loading notification removed (silent now)
