@@ -5,39 +5,13 @@ _G.CreateManualTeleports = function(tab)
 
     local trainingFolder = game:GetService("Workspace").Scriptable:WaitForChild("TrainingAreas")
 
-    -- Safe teleport function with anti-clip
+    -- Simple teleport function (anti-clip removed)
     local function teleportToArea(position)
         local character = game.Players.LocalPlayer.Character or game.Players.LocalPlayer.CharacterAdded:Wait()
         if not character or not character:FindFirstChild("HumanoidRootPart") then return end
         local hrp = character.HumanoidRootPart
 
-        -- Initial teleport
         hrp.CFrame = CFrame.new(position)
-
-        -- Anti-clip check
-        task.wait(0.2)
-        local params = RaycastParams.new()
-        params.FilterDescendantsInstances = {character}
-        params.FilterType = Enum.RaycastFilterType.Exclude
-
-        local directions = {
-            Vector3.new(1, 0, 0), Vector3.new(-1, 0, 0),
-            Vector3.new(0, 0, 1), Vector3.new(0, 0, -1),
-            Vector3.new(0, 1, 0), Vector3.new(0, -1, 0)
-        }
-
-        local clipped = false
-        for _, dir in ipairs(directions) do
-            local result = workspace:Raycast(hrp.Position, dir * 5, params)
-            if result then
-                clipped = true
-                break
-            end
-        end
-
-        if clipped then
-            hrp.CFrame = CFrame.new(position + Vector3.new(0, 110, 0))
-        end
     end
 
     -- Strength Section (complete)
