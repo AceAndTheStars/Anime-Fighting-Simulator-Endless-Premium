@@ -1,7 +1,6 @@
 -- Anime Fighting Simulator Endless - Chikara Premium BETA Farm
--- No-Teleport / Max Distance ClickDetector Method
--- Clean & relatively low-detection style
--- Version: BETA - January 2026
+-- No-Teleport / Max Distance ClickDetector Method - ORIGINAL PATH ONLY
+-- Clean & low-detection style
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
@@ -35,7 +34,7 @@ local function startChikaraFarm()
     if chikaraRunning then return end
     chikaraRunning = true
 
-    notify("Chikara BETA", "Max Distance Farm ENABLED\n(No constant TP - safer style)", 6)
+    notify("Chikara BETA", "Max Distance Farm ENABLED\n(No constant TP)", 6)
 
     task.spawn(function()
         local character = player.Character or player.CharacterAdded:Wait()
@@ -45,14 +44,14 @@ local function startChikaraFarm()
             and Workspace.Scriptable:WaitForChild("ChikaraBoxes", 10)
 
         if not chikaraFolder then
-            notify("Error", "ChikaraBoxes folder not found!\nPath may have changed.", 8)
+            notify("CRITICAL ERROR", "workspace.Scriptable.ChikaraBoxes not found!\nThe path has most likely changed.", 10)
             chikaraRunning = false
             return
         end
 
         local originalDistances = {}
 
-        -- Apply huge MaxActivationDistance to all existing detectors
+        -- Apply to existing
         for _, box in ipairs(chikaraFolder:GetChildren()) do
             task.spawn(function()
                 local clickBox = box:FindFirstChild("ClickBox")
@@ -66,7 +65,7 @@ local function startChikaraFarm()
             end)
         end
 
-        -- Watch for newly spawned boxes
+        -- New boxes
         local childAddedConn = chikaraFolder.ChildAdded:Connect(function(child)
             task.delay(0.5, function()
                 local clickBox = child:FindFirstChild("ClickBox")
@@ -80,14 +79,13 @@ local function startChikaraFarm()
             end)
         end)
 
-        -- Character respawn handling
         local charAddedConn = player.CharacterAdded:Connect(function(newChar)
             character = newChar
             root = newChar:WaitForChild("HumanoidRootPart", 8)
         end)
 
         local noBoxTimer = 0
-        local MAX_NO_BOX_WAIT = 110   -- ≈ 88 seconds before fallback teleport
+        local MAX_NO_BOX_WAIT = 110
 
         while chikaraRunning and root and root.Parent do
             local foundAny = false
@@ -100,7 +98,7 @@ local function startChikaraFarm()
                         pcall(function()
                             fireclickdetector(detector)
                             task.wait(0.035)
-                            fireclickdetector(detector)  -- double tap for reliability
+                            fireclickdetector(detector)
                         end)
                         foundAny = true
                     end
@@ -112,30 +110,26 @@ local function startChikaraFarm()
             else
                 noBoxTimer = noBoxTimer + 1
                 if noBoxTimer >= MAX_NO_BOX_WAIT then
-                    local randomPos = FALLBACK_POSITIONS[math.random(1, #FALLBACK_POSITIONS)]
-                    if root then
-                        root.CFrame = CFrame.new(randomPos)
-                    end
+                    local pos = FALLBACK_POSITIONS[math.random(1, #FALLBACK_POSITIONS)]
+                    root.CFrame = CFrame.new(pos)
                     noBoxTimer = 0
                 end
             end
 
-            task.wait(0.8)  -- balanced rate - looks human, hard to flag as spam
+            task.wait(0.8)
         end
 
         -- Cleanup
-        for detector, original in pairs(originalDistances) do
+        for det, orig in pairs(originalDistances) do
             pcall(function()
-                if detector and detector.Parent then
-                    detector.MaxActivationDistance = original
-                end
+                if det and det.Parent then det.MaxActivationDistance = orig end
             end)
         end
 
         childAddedConn:Disconnect()
         charAddedConn:Disconnect()
 
-        notify("Chikara BETA", "Farm DISABLED\nDetectors restored", 5)
+        notify("Chikara BETA", "Disabled - detectors restored", 5)
     end)
 end
 
@@ -143,16 +137,12 @@ local function stopChikaraFarm()
     chikaraRunning = false
 end
 
--- Public toggle function (for hub integration)
 _G.ToggleOPRemoteChikaraFarmBeta = function(state)
-    if state == true then
+    if state then
         startChikaraFarm()
     else
         stopChikaraFarm()
     end
 end
 
--- Optional: auto-start when loaded (comment out if using in hub)
--- _G.ToggleOPRemoteChikaraFarmBeta(true)
-
-notify("Chikara BETA Loaded", "Ready", 3)
+notify("Chikara BETA", "Loaded - use the toggle in hub", 4)
