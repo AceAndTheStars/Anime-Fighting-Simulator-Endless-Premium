@@ -1,6 +1,6 @@
 -- Anime Fighting Simulator Endless - Chikara Premium BETA Farm
--- No-Teleport / Max Distance ClickDetector Method - ORIGINAL PATH ONLY
--- Clean & low-detection style
+-- No-Teleport / Max Distance ClickDetector Method
+-- Very fast disable response when untoggled
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
@@ -25,7 +25,7 @@ local function notify(title, text, duration)
         StarterGui:SetCore("SendNotification", {
             Title = title or "Chikara BETA",
             Text = text,
-            Duration = duration or 2
+            Duration = duration or 5
         })
     end)
 end
@@ -34,7 +34,7 @@ local function startChikaraFarm()
     if chikaraRunning then return end
     chikaraRunning = true
 
-    notify("Chikara Farm (BETA)", "Enjoy", 1)
+    notify("Chikara BETA", "Max Distance Farm ENABLED\n(Stops almost instantly when disabled)", 6)
 
     task.spawn(function()
         local character = player.Character or player.CharacterAdded:Wait()
@@ -44,14 +44,14 @@ local function startChikaraFarm()
             and Workspace.Scriptable:WaitForChild("ChikaraBoxes", 10)
 
         if not chikaraFolder then
-            notify("CRITICAL ERROR", "workspace.Scriptable.ChikaraBoxes not found!\nThe path has most likely changed.", 10)
+            notify("ERROR", "ChikaraBoxes folder not found!\nPath probably changed.", 8)
             chikaraRunning = false
             return
         end
 
         local originalDistances = {}
 
-        -- Apply to existing
+        -- Apply to existing boxes
         for _, box in ipairs(chikaraFolder:GetChildren()) do
             task.spawn(function()
                 local clickBox = box:FindFirstChild("ClickBox")
@@ -88,6 +88,9 @@ local function startChikaraFarm()
         local MAX_NO_BOX_WAIT = 110
 
         while chikaraRunning and root and root.Parent do
+            -- Instant check - stops almost immediately when untoggled
+            if not chikaraRunning then break end
+
             local foundAny = false
 
             for _, box in ipairs(chikaraFolder:GetChildren()) do
@@ -98,7 +101,7 @@ local function startChikaraFarm()
                         pcall(function()
                             fireclickdetector(detector)
                             task.wait(0.035)
-                            fireclickdetector(detector)
+                            fireclickdetector(detector)  -- double for reliability
                         end)
                         foundAny = true
                     end
@@ -116,20 +119,22 @@ local function startChikaraFarm()
                 end
             end
 
-            task.wait(0.85)
+            task.wait(0.8)  -- good balance for 10s cooldown
         end
 
-        -- Cleanup
-        for det, orig in pairs(originalDistances) do
+        -- Cleanup (runs right after loop exits)
+        for detector, origDist in pairs(originalDistances) do
             pcall(function()
-                if det and det.Parent then det.MaxActivationDistance = orig end
+                if detector and detector.Parent then
+                    detector.MaxActivationDistance = origDist
+                end
             end)
         end
 
         childAddedConn:Disconnect()
         charAddedConn:Disconnect()
 
-        notify("Chikara BETA", "Disabled - detectors restored", 5)
+        notify("Chikara BETA", "Farm DISABLED - detectors restored", 5)
     end)
 end
 
@@ -145,4 +150,4 @@ _G.ToggleOPRemoteChikaraFarmBeta = function(state)
     end
 end
 
-notify("Chikara BETA", "Loaded - use the toggle in hub", 4)
+notify("Chikara BETA", "Loaded - ready to toggle", 4)
