@@ -1,4 +1,4 @@
--- TeleportsPremium.lua - Manual Training Teleports for AFSE Premium (With Real Coordinates - ALL SECTIONS COMPLETE)
+-- TeleportsPremium.lua - Manual Training Teleports for AFSE Premium (With Real Coordinates - ALL SECTIONS COMPLETE + Quest NPCs)
 
 _G.CreateManualTeleports = function(tab)
     if not tab then return end
@@ -69,4 +69,14 @@ _G.CreateManualTeleports = function(tab)
     tab:CreateButton({ Name = "[10K Speed & Agility]", Callback = function() teleportToArea(Vector3.new(-386.277, 105.000, -47.382)) end })
     tab:CreateButton({ Name = "[100K Speed & Agility]", Callback = function() teleportToArea(Vector3.new(3484.517, 60.000, 144.701)) end })
     tab:CreateButton({ Name = "[5M Speed & Agility]", Callback = function() teleportToArea(Vector3.new(4111.812, 60.922, 849.557)) end })
+
+    -- New Section: Teleport to Quest NPCs
+    tab:CreateSection("Teleport to Quest NPCs")
+    tab:CreateButton({ Name = "Boom", Callback = function() teleportToArea(Vector3.new(-33.801, 80.224, 3.453)) end })
+    tab:CreateButton({ Name = "Ghoul", Callback = function() teleportToArea(Vector3.new(1695.234, 142.400, -172.643)) end })
+    tab:CreateButton({ Name = "Giovanni", Callback = function() teleportToArea(Vector3.new(151.815, 62.400, -231.939)) end })
+    tab:CreateButton({ Name = "Happi", Callback = function() teleportToArea(Vector3.new(23.235, 105.143, 36.597)) end })
+    tab:CreateButton({ Name = "Reindeer", Callback = function() teleportToArea(Vector3.new(-31.839, 105.146, 35.543)) end })
+    tab:CreateButton({ Name = "Sword Master", Callback = function() teleportToArea(Vector3.new(325.219, 69.576, -1990.182)) end })
+
 end
