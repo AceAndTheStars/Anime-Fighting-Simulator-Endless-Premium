@@ -155,4 +155,4 @@ end
 -- Optional: auto-start when loaded (comment out if using in hub)
 -- _G.ToggleOPRemoteChikaraFarmBeta(true)
 
-notify("Chikara BETA Loaded", "Ready!\nToggle with your hub or call _G.ToggleOPRemoteChikaraFarmBeta(true)", 7)
+notify("Chikara BETA Loaded", "Ready", 3)
