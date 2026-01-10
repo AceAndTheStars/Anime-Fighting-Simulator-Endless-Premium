@@ -25,7 +25,7 @@ local function notify(title, text, duration)
         StarterGui:SetCore("SendNotification", {
             Title = title or "Chikara BETA",
             Text = text,
-            Duration = duration or 5
+            Duration = duration or 2
         })
     end)
 end
@@ -34,7 +34,7 @@ local function startChikaraFarm()
     if chikaraRunning then return end
     chikaraRunning = true
 
-    notify("Chikara BETA", "Max Distance Farm ENABLED\n(No constant TP)", 6)
+    notify("Chikara Farm (BETA)", "Enjoy", 1)
 
     task.spawn(function()
         local character = player.Character or player.CharacterAdded:Wait()
@@ -116,7 +116,7 @@ local function startChikaraFarm()
                 end
             end
 
-            task.wait(0.8)
+            task.wait(0.85)
         end
 
         -- Cleanup
