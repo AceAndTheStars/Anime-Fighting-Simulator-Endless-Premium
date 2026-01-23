@@ -1,27 +1,27 @@
--- ABA.lua - Auto Best Area TP
--- Conservative version: only teleport to next tier when stat ≥ labeled threshold
--- Uses player.Stats["1/2/3"].Value + real positions from TeleportsPremium
+-- ABA.lua - Auto Best Area TP (Strict conservative version)
+-- Only moves to a tier when stat >= the labeled threshold
+-- Never jumps ahead — with 16k strength stays in [10K] until 100k+
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
--- Real positions (ordered: lowest → highest tier)
+-- Real positions (index 1 = [100], 2 = [10K], 3 = [100K], ..., 13 = [1sx])
 local TrainingPositions = {
     Strength = {
-        Vector3.new(-6.535,    65.000,  127.964),   -- [100]
-        Vector3.new(1341.183, 153.963, -134.552),   -- [10K]
-        Vector3.new(-1247.836,  59.000, 481.151),   -- [100K]
-        Vector3.new(-905.422,   84.882, 170.033),   -- [1M]
-        Vector3.new(-2257.115, 617.105, 546.753),   -- [10M]
-        Vector3.new(-51.014,    63.736, -1302.732), -- [100M]
-        Vector3.new(714.433,   151.732, 926.474),   -- [1B]
-        Vector3.new(1846.153,  141.200,  90.468),   -- [100B]
-        Vector3.new(604.720,   653.458, 413.728),   -- [5T]
-        Vector3.new(4284.651,   60.000, -534.592),  -- [250T]
-        Vector3.new(797.981,   232.382, -1002.742), -- [75qd]
-        Vector3.new(3873.921,  136.388, 855.103),   -- [2.5QN]
-        Vector3.new(3933.355,  724.772, -1197.858), -- [1sx]
+        Vector3.new(-6.535,    65.000,  127.964),   -- 1: [100]
+        Vector3.new(1341.183, 153.963, -134.552),   -- 2: [10K]
+        Vector3.new(-1247.836,  59.000, 481.151),   -- 3: [100K]
+        Vector3.new(-905.422,   84.882, 170.033),   -- 4: [1M]
+        Vector3.new(-2257.115, 617.105, 546.753),   -- 5: [10M]
+        Vector3.new(-51.014,    63.736, -1302.732), -- 6: [100M]
+        Vector3.new(714.433,   151.732, 926.474),   -- 7: [1B]
+        Vector3.new(1846.153,  141.200,  90.468),   -- 8: [100B]
+        Vector3.new(604.720,   653.458, 413.728),   -- 9: [5T]
+        Vector3.new(4284.651,   60.000, -534.592),  -- 10: [250T]
+        Vector3.new(797.981,   232.382, -1002.742), -- 11: [75qd]
+        Vector3.new(3873.921,  136.388, 855.103),   -- 12: [2.5QN]
+        Vector3.new(3933.355,  724.772, -1197.858), -- 13: [1sx]
     },
     Durability = {
         Vector3.new(72.340,    69.263,  877.353),
@@ -55,47 +55,42 @@ local TrainingPositions = {
     }
 }
 
--- Minimum stat required to use each tier (based on button labels)
--- Index 1 = [100] (always available)
--- Index 2 = [10K] → needs at least 10,000
--- Index 3 = [100K] → needs at least 100,000
--- etc.
+-- Minimum stat required for EACH tier (aligned with button labels)
+-- You must be >= this value to use that area
 local TierRequirements = {
-    0,          -- tier 1: [100] → available from 0
-    10000,      -- tier 2: [10K]
-    100000,     -- tier 3: [100K]
-    1000000,    -- tier 4: [1M]
-    10000000,   -- tier 5: [10M]
-    100000000,  -- tier 6: [100M]
-    1000000000, -- tier 7: [1B]
-    100000000000,   -- tier 8: [100B]
-    5000000000000,  -- tier 9: [5T]
-    250000000000000,-- tier 10: [250T]
-    75000000000000000, -- tier 11: [75qd]
-    2500000000000000000, -- tier 12: [2.5QN]
-    -- tier 13: [1sx] → extremely high, no need for higher threshold here
+    0,           -- 1: [100] → always
+    10000,       -- 2: [10K]
+    100000,      -- 3: [100K]
+    1000000,     -- 4: [1M]
+    10000000,    -- 5: [10M]
+    100000000,   -- 6: [100M]
+    1000000000,  -- 7: [1B]
+    100000000000,-- 8: [100B]
+    5000000000000,-- 9: [5T]
+    250000000000000,--10: [250T]
+    75000000000000000,--11: [75qd]
+    2500000000000000000,--12: [2.5QN]
+    -- 13: [1sx] → no higher threshold needed (last one)
 }
 
--- Get current stat value
+-- Get current stat value safely
 local function GetStatValue(key)
     local stats = LocalPlayer:FindFirstChild("Stats")
     if not stats then return 0 end
-    local valObj = stats:FindFirstChild(key)
-    return (valObj and (valObj:IsA("IntValue") or valObj:IsA("NumberValue"))) and valObj.Value or 0
+    local obj = stats:FindFirstChild(key)
+    return (obj and (obj:IsA("IntValue") or obj:IsA("NumberValue"))) and obj.Value or 0
 end
 
--- Find the highest tier you actually qualify for
-local function GetBestTierIndex(currentStat)
-    local best = 1
-    for i = 1, #TierRequirements do
-        if currentStat >= TierRequirements[i] then
-            best = i
-        else
-            -- stop as soon as we find a tier we DON'T meet
+-- Find highest tier where current >= requirement
+local function GetBestTierIndex(current)
+    local bestIndex = 1
+    for i = #TierRequirements, 1, -1 do
+        if current >= TierRequirements[i] then
+            bestIndex = i
             break
         end
     end
-    return best
+    return bestIndex
 end
 
 -- Get target position
@@ -106,17 +101,14 @@ local function GetBestPosition(statName)
     if not key then return nil end
 
     local current = GetStatValue(key)
-    if current <= 0 then return nil end
+    if current <= 0 then return TrainingPositions[statName][1] end
 
-    local tierIndex = GetBestTierIndex(current)
-    local positions = TrainingPositions[statName]
-    if positions and positions[tierIndex] then
-        return positions[tierIndex]
-    end
-    return positions[1] -- fallback
+    local index = GetBestTierIndex(current)
+    local pos = TrainingPositions[statName][index]
+    return pos or TrainingPositions[statName][1]  -- fallback to lowest
 end
 
--- Loop management
+-- Loop controllers
 local Loops = {
     Strength   = { Active = false, Connection = nil },
     Durability = { Active = false, Connection = nil },
@@ -124,12 +116,12 @@ local Loops = {
 }
 
 local function StartTp(statName)
-    local loopData = Loops[statName]
-    if loopData.Active then return end
-    loopData.Active = true
+    local loop = Loops[statName]
+    if loop.Active then return end
+    loop.Active = true
 
-    loopData.Connection = RunService.Heartbeat:Connect(function()
-        if not loopData.Active then return end
+    loop.Connection = RunService.Heartbeat:Connect(function()
+        if not loop.Active then return end
 
         local char = LocalPlayer.Character
         if not char then return end
@@ -139,8 +131,8 @@ local function StartTp(statName)
         local target = GetBestPosition(statName)
         if not target then return end
 
-        local distance = (hrp.Position - target).Magnitude
-        if distance > 45 then
+        local dist = (hrp.Position - target).Magnitude
+        if dist > 45 then
             local offset = Vector3.new(math.random(-6,6), 5, math.random(-6,6))
             hrp.CFrame = CFrame.new(target + offset)
         end
@@ -148,16 +140,16 @@ local function StartTp(statName)
 end
 
 local function StopTp(statName)
-    local loopData = Loops[statName]
-    if not loopData.Active then return end
-    loopData.Active = false
-    if loopData.Connection then
-        loopData.Connection:Disconnect()
-        loopData.Connection = nil
+    local loop = Loops[statName]
+    if not loop.Active then return end
+    loop.Active = false
+    if loop.Connection then
+        loop.Connection:Disconnect()
+        loop.Connection = nil
     end
 end
 
--- Toggle callbacks
+-- Toggle functions
 _G.ToggleAutoTpBestStrength = function(enabled)
     if enabled then StartTp("Strength") else StopTp("Strength") end
 end
@@ -170,11 +162,11 @@ _G.ToggleAutoTpBestChakra = function(enabled)
     if enabled then StartTp("Chakra") else StopTp("Chakra") end
 end
 
--- Cleanup
+-- Cleanup on character remove
 LocalPlayer.CharacterRemoving:Connect(function()
-    for _, data in pairs(Loops) do
-        if data.Active and data.Connection then
-            data.Connection:Disconnect()
+    for _, l in pairs(Loops) do
+        if l.Active and l.Connection then
+            l.Connection:Disconnect()
         end
     end
 end)
