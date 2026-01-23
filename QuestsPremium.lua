@@ -1,10 +1,9 @@
--- QuestsPremium.lua (Rewritten - Clean & Robust Version)
--- Handles Boom quest data extraction with strong nil/type protection
+-- QuestsPremium.lua
+-- Safe version - uses manual max finding instead of table.sort to avoid conflicts
 
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
--- Reusable safe number formatter (unchanged core logic)
 local function formatNumber(num)
     if not num or type(num) ~= "number" then return "0" end
     if num == 0 then return "0" end
@@ -23,10 +22,9 @@ local function formatNumber(num)
     end
     
     local formatted = string.format("%.1f%s", value, suffixes[i] or "")
-    return formatted:gsub("%.0$", "")  -- Clean up trailing .0
+    return formatted:gsub("%.0$", "")
 end
 
--- Main data extractor - returns display-ready info
 local function getBoomQuestData()
     local questsFolder = player:FindFirstChild("Quests")
     if not questsFolder then
@@ -39,21 +37,24 @@ local function getBoomQuestData()
         }
     end
 
-    -- Collect all BoomX folders and find the one with highest number
-    local boomQuests = {}
+    -- Find the Boom quest with the highest number (manual loop - no sort)
+    local highestNum = -1
+    local activeQuestFolder = nil
+
     for _, child in ipairs(questsFolder:GetChildren()) do
         if child:IsA("Folder") then
             local numStr = child.Name:match("^Boom(%d+)$")
             if numStr then
                 local num = tonumber(numStr)
-                if num then
-                    table.insert(boomQuests, {folder = child, number = num})
+                if num and num > highestNum then
+                    highestNum = num
+                    activeQuestFolder = child
                 end
             end
         end
     end
 
-    if #boomQuests == 0 then
+    if not activeQuestFolder then
         return {
             statusText = "No Boom quest active",
             tasks = {},
@@ -63,16 +64,11 @@ local function getBoomQuestData()
         }
     end
 
-    -- Sort descending → highest number is most likely current/active
-    table.sort(boomQuests, function(a, b) return a.number > b.number end)
-    local active = boomQuests[1]
-    local activeQuest = active.folder
-    local questNumber = active.number
-
+    local questNumber = highestNum
     local statusText = "Active: Boom #" .. questNumber
 
-    local progressFolder    = activeQuest:FindFirstChild("Progress")
-    local requirementsFolder = activeQuest:FindFirstChild("Requirements")
+    local progressFolder     = activeQuestFolder:FindFirstChild("Progress")
+    local requirementsFolder = activeQuestFolder:FindFirstChild("Requirements")
 
     if not progressFolder or not requirementsFolder then
         return {
@@ -93,7 +89,7 @@ local function getBoomQuestData()
         local reqValue  = requirementsFolder:FindFirstChild(tostring(i))
 
         local current = (progValue and type(progValue.Value) == "number") and progValue.Value or 0
-        local needed  = (reqValue  and type(reqValue.Value)  == "number")  and reqValue.Value  or 0
+        local needed  = (reqValue  and type(reqValue.Value) == "number") and reqValue.Value or 0
 
         table.insert(tasks, "Task " .. i .. ": " .. formatNumber(current) .. " / " .. formatNumber(needed))
 
@@ -109,31 +105,21 @@ local function getBoomQuestData()
     end
 
     return {
-        statusText   = statusText,
-        tasks        = tasks,
-        questNumber  = questNumber,
-        isCompleted  = isCompleted,
-        totalTasks   = maxIndex,
+        statusText     = statusText,
+        tasks          = tasks,
+        questNumber    = questNumber,
+        isCompleted    = isCompleted,
+        totalTasks     = maxIndex,
         completedTasks = completedCount
     }
 end
 
--- Expose to main hub script (UI polling)
 _G.GetBoomQuestDisplayData = getBoomQuestData
 
--- Auto-quest toggle (placeholder — expand later)
 _G.ToggleAutoQuestBoom = function(enabled)
-    -- Future implementation:
-    --   - If enabled → start loop that reads tasks → auto-trains/kills/runs → claims when done
-    --   - Use existing autofarms (ToggleAutoStrength etc.) for stat tasks
-    --   - Fire claim remote when isCompleted == true
-    -- For now: just a stub
     if enabled then
-        warn("[AutoQuestBoom] Enabled — logic not yet implemented")
+        warn("[AutoQuestBoom] Enabled — auto logic not yet implemented")
     else
         warn("[AutoQuestBoom] Disabled")
     end
 end
-
--- Optional: for debugging in console
--- print("QuestsPremium loaded - ready for polling")
