@@ -1,11 +1,12 @@
 -- ABA.lua - Auto Best Area TP
--- Uses player.Stats["1/2/3"].Value + real positions & thresholds from button names
+-- Conservative version: only teleport to next tier when stat ≥ labeled threshold
+-- Uses player.Stats["1/2/3"].Value + real positions from TeleportsPremium
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
--- Real positions from TeleportsPremium.lua (ordered: lowest → highest tier)
+-- Real positions (ordered: lowest → highest tier)
 local TrainingPositions = {
     Strength = {
         Vector3.new(-6.535,    65.000,  127.964),   -- [100]
@@ -23,57 +24,59 @@ local TrainingPositions = {
         Vector3.new(3933.355,  724.772, -1197.858), -- [1sx]
     },
     Durability = {
-        Vector3.new(72.340,    69.263,  877.353),   -- [100]
-        Vector3.new(-1602.088, 61.502, -532.064),   -- [10K]
-        Vector3.new(-77.845,   61.008, 2037.284),   -- [100K]
-        Vector3.new(-621.543,  179.000, 741.890),   -- [1M]
-        Vector3.new(-1102.311, 212.630, -946.145),  -- [10M]
-        Vector3.new(-341.295,   72.620, -1653.579), -- [100M]
-        Vector3.new(2495.276, 1540.875, -356.906),  -- [1B]
-        Vector3.new(-2171.543, 617.517, 525.640),   -- [100B]
-        Vector3.new(2188.043,  518.649, 576.627),   -- [5T]
-        Vector3.new(1671.975,  423.930, -1291.617), -- [250T]
-        Vector3.new(165.322,   773.591, -716.061),  -- [75QD]
-        Vector3.new(2590.823,   63.229, 1697.295),  -- [2.5QN]
-        Vector3.new(1726.687, 2305.067,  61.937),   -- [1sx]
+        Vector3.new(72.340,    69.263,  877.353),
+        Vector3.new(-1602.088, 61.502, -532.064),
+        Vector3.new(-77.845,   61.008, 2037.284),
+        Vector3.new(-621.543,  179.000, 741.890),
+        Vector3.new(-1102.311, 212.630, -946.145),
+        Vector3.new(-341.295,   72.620, -1653.579),
+        Vector3.new(2495.276, 1540.875, -356.906),
+        Vector3.new(-2171.543, 617.517, 525.640),
+        Vector3.new(2188.043,  518.649, 576.627),
+        Vector3.new(1671.975,  423.930, -1291.617),
+        Vector3.new(165.322,   773.591, -716.061),
+        Vector3.new(2590.823,   63.229, 1697.295),
+        Vector3.new(1726.687, 2305.067,  61.937),
     },
     Chakra = {
-        Vector3.new(-3.768,    65.000, -117.034),   -- [100]
-        Vector3.new(1423.010,  147.000, -582.122),  -- [10K]
-        Vector3.new(917.247,   141.000, 781.455),   -- [100K]
-        Vector3.new(1576.373,  388.750, 675.160),   -- [1M]
-        Vector3.new(334.134,  -129.590, -1840.660), -- [10M]
-        Vector3.new(1028.428,  251.000, -627.812),  -- [100M]
-        Vector3.new(3053.941,  110.900, 1105.880),  -- [1B]
-        Vector3.new(1552.188,   88.724, 1717.498),  -- [100B]
-        Vector3.new(-17.094,    62.073, -478.995),  -- [5T]
-        Vector3.new(-396.257, 1237.356, 670.550),   -- [250T]
-        Vector3.new(-737.839, 2792.597, 567.334),   -- [75qd]
-        Vector3.new(3151.687,  163.000, -102.653),  -- [2.5QN]
-        Vector3.new(358.822,   292.742, 1864.116),  -- [1sx]
+        Vector3.new(-3.768,    65.000, -117.034),
+        Vector3.new(1423.010,  147.000, -582.122),
+        Vector3.new(917.247,   141.000, 781.455),
+        Vector3.new(1576.373,  388.750, 675.160),
+        Vector3.new(334.134,  -129.590, -1840.660),
+        Vector3.new(1028.428,  251.000, -627.812),
+        Vector3.new(3053.941,  110.900, 1105.880),
+        Vector3.new(1552.188,   88.724, 1717.498),
+        Vector3.new(-17.094,    62.073, -478.995),
+        Vector3.new(-396.257, 1237.356, 670.550),
+        Vector3.new(-737.839, 2792.597, 567.334),
+        Vector3.new(3151.687,  163.000, -102.653),
+        Vector3.new(358.822,   292.742, 1864.116),
     }
 }
 
--- Thresholds based directly on the button names (minimum stat to unlock/use that area)
--- These are the MINIMUM values where that tier becomes available
-local TierThresholds = {
-    0,               -- [100]          tier 1
-    100,             -- technically starts at 100, but placeholder for [100]
-    10000,           -- [10K]
-    100000,          -- [100K]
-    1000000,         -- [1M]
-    10000000,        -- [10M]
-    100000000,       -- [100M]
-    1000000000,      -- [1B]
-    100000000000,    -- [100B]
-    5000000000000,   -- [5T] = 5 trillion
-    250000000000000, -- [250T] = 250 trillion
-    75000000000000000, -- [75qd] = 75 quadrillion
-    2500000000000000000, -- [2.5QN] = 2.5 quintillion
-    -- [1sx] is the last one, unlocked at extremely high stats (sextillion range) — no need for higher threshold
+-- Minimum stat required to use each tier (based on button labels)
+-- Index 1 = [100] (always available)
+-- Index 2 = [10K] → needs at least 10,000
+-- Index 3 = [100K] → needs at least 100,000
+-- etc.
+local TierRequirements = {
+    0,          -- tier 1: [100] → available from 0
+    10000,      -- tier 2: [10K]
+    100000,     -- tier 3: [100K]
+    1000000,    -- tier 4: [1M]
+    10000000,   -- tier 5: [10M]
+    100000000,  -- tier 6: [100M]
+    1000000000, -- tier 7: [1B]
+    100000000000,   -- tier 8: [100B]
+    5000000000000,  -- tier 9: [5T]
+    250000000000000,-- tier 10: [250T]
+    75000000000000000, -- tier 11: [75qd]
+    2500000000000000000, -- tier 12: [2.5QN]
+    -- tier 13: [1sx] → extremely high, no need for higher threshold here
 }
 
--- Get current stat value from player.Stats
+-- Get current stat value
 local function GetStatValue(key)
     local stats = LocalPlayer:FindFirstChild("Stats")
     if not stats then return 0 end
@@ -81,33 +84,39 @@ local function GetStatValue(key)
     return (valObj and (valObj:IsA("IntValue") or valObj:IsA("NumberValue"))) and valObj.Value or 0
 end
 
--- Find the highest tier index your current stat qualifies for
-local function GetBestTierIndex(current)
-    local index = 1
-    for i, thresh in ipairs(TierThresholds) do
-        if current >= thresh then
-            index = i
+-- Find the highest tier you actually qualify for
+local function GetBestTierIndex(currentStat)
+    local best = 1
+    for i = 1, #TierRequirements do
+        if currentStat >= TierRequirements[i] then
+            best = i
         else
+            -- stop as soon as we find a tier we DON'T meet
             break
         end
     end
-    return index
+    return best
 end
 
--- Best position for the stat
+-- Get target position
 local function GetBestPosition(statName)
-    local key = (statName == "Strength" and "1") or (statName == "Durability" and "2") or (statName == "Chakra" and "3") or nil
+    local key = (statName == "Strength" and "1") or
+                (statName == "Durability" and "2") or
+                (statName == "Chakra" and "3") or nil
     if not key then return nil end
 
     local current = GetStatValue(key)
     if current <= 0 then return nil end
 
-    local idx = GetBestTierIndex(current)
-    local posList = TrainingPositions[statName]
-    return posList and posList[idx] or posList[1]  -- fallback to lowest
+    local tierIndex = GetBestTierIndex(current)
+    local positions = TrainingPositions[statName]
+    if positions and positions[tierIndex] then
+        return positions[tierIndex]
+    end
+    return positions[1] -- fallback
 end
 
--- Per-stat loop management
+-- Loop management
 local Loops = {
     Strength   = { Active = false, Connection = nil },
     Durability = { Active = false, Connection = nil },
@@ -130,8 +139,9 @@ local function StartTp(statName)
         local target = GetBestPosition(statName)
         if not target then return end
 
-        if (hrp.Position - target).Magnitude > 40 then
-            local offset = Vector3.new(math.random(-5,5), 5, math.random(-5,5))
+        local distance = (hrp.Position - target).Magnitude
+        if distance > 45 then
+            local offset = Vector3.new(math.random(-6,6), 5, math.random(-6,6))
             hrp.CFrame = CFrame.new(target + offset)
         end
     end)
@@ -147,14 +157,24 @@ local function StopTp(statName)
     end
 end
 
--- UI toggle callbacks
-_G.ToggleAutoTpBestStrength = function(on) if on then StartTp("Strength") else StopTp("Strength") end end
-_G.ToggleAutoTpBestDurability = function(on) if on then StartTp("Durability") else StopTp("Durability") end end
-_G.ToggleAutoTpBestChakra = function(on) if on then StartTp("Chakra") else StopTp("Chakra") end end
+-- Toggle callbacks
+_G.ToggleAutoTpBestStrength = function(enabled)
+    if enabled then StartTp("Strength") else StopTp("Strength") end
+end
+
+_G.ToggleAutoTpBestDurability = function(enabled)
+    if enabled then StartTp("Durability") else StopTp("Durability") end
+end
+
+_G.ToggleAutoTpBestChakra = function(enabled)
+    if enabled then StartTp("Chakra") else StopTp("Chakra") end
+end
 
 -- Cleanup
 LocalPlayer.CharacterRemoving:Connect(function()
-    for _, l in pairs(Loops) do
-        if l.Active and l.Connection then l.Connection:Disconnect() end
+    for _, data in pairs(Loops) do
+        if data.Active and data.Connection then
+            data.Connection:Disconnect()
+        end
     end
 end)
