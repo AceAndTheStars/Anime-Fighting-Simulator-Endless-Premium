@@ -1,5 +1,4 @@
--- QuestsPremium.lua
--- Safe version - uses manual max finding instead of table.sort to avoid conflicts
+-- QuestsPremium.lua - Clean version, no console output whatsoever
 
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
@@ -37,13 +36,13 @@ local function getBoomQuestData()
         }
     end
 
-    -- Find the Boom quest with the highest number (manual loop - no sort)
+    -- Manual highest-number search
     local highestNum = -1
     local activeQuestFolder = nil
 
     for _, child in ipairs(questsFolder:GetChildren()) do
         if child:IsA("Folder") then
-            local numStr = child.Name:match("^Boom(%d+)$")
+            local numStr = string.match(child.Name, "^Boom(%d+)$")
             if numStr then
                 local num = tonumber(numStr)
                 if num and num > highestNum then
@@ -117,9 +116,5 @@ end
 _G.GetBoomQuestDisplayData = getBoomQuestData
 
 _G.ToggleAutoQuestBoom = function(enabled)
-    if enabled then
-        warn("[AutoQuestBoom] Enabled — auto logic not yet implemented")
-    else
-        warn("[AutoQuestBoom] Disabled")
-    end
+    -- Placeholder - no output
 end
