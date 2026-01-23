@@ -1,4 +1,4 @@
--- QuestsPremium.lua - Clean version, no console output whatsoever
+-- QuestsPremium.lua - Clean & Silent Version (no console output at all)
 
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
@@ -36,7 +36,7 @@ local function getBoomQuestData()
         }
     end
 
-    -- Manual highest-number search
+    -- Find the Boom quest with the highest number (manual loop - no sort)
     local highestNum = -1
     local activeQuestFolder = nil
 
@@ -116,5 +116,5 @@ end
 _G.GetBoomQuestDisplayData = getBoomQuestData
 
 _G.ToggleAutoQuestBoom = function(enabled)
-    -- Placeholder - no output
+    -- Placeholder - no action yet
 end
