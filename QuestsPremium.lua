@@ -1,4 +1,4 @@
--- QuestsPremium.lua (Cleaned - No Console Output + Auto TP Integration)
+-- QuestsPremium.lua (Cleaned - No Console Output - Simplified Auto Quest)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -95,7 +95,7 @@ end
 
 -- =====================================================================
 -- ==================== AUTO QUEST (BOOM) LOGIC ========================
--- ==================== SEPARATE FROM DISPLAY CODE ====================
+-- ==================== ONLY TRAIN REQUIRED STATS - NO TP ====================
 -- =====================================================================
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -116,7 +116,12 @@ local BOOM_CLICK_DETECTOR = Workspace:WaitForChild("Scriptable", 5)
     :WaitForChild("ClickDetector", 5)
 
 local taskToStatID = {
-    [1] = 1, [2] = 2, [3] = 3, [4] = 4, [5] = 5, [6] = 6
+    [1] = 1,  -- Strength
+    [2] = 2,  -- Durability
+    [3] = 3,  -- Chakra
+    [4] = 4,  -- Sword
+    [5] = 5,  -- Agility
+    [6] = 6   -- Speed
 }
 
 local phrasing = {
@@ -130,16 +135,6 @@ local phrasing = {
     ["SX"] = 1000000000000000000000,
     ["SP"] = 1000000000000000000000000,
     ["OC"] = 1000000000000000000000000000
-}
-
--- Mapping task index → exact Stats tab TP toggle name
-local taskToBestTpToggle = {
-    [1] = "ToggleAutoTpBestStrength",
-    [2] = "ToggleAutoTpBestDurability",
-    [3] = "ToggleAutoTpBestChakra",
-    [4] = nil,  -- Sword has no training area → no TP
-    [5] = "ToggleAutoTpBestAgility",
-    [6] = "ToggleAutoTpBestSpeed"
 }
 
 -- ==================== HELPERS ====================
@@ -161,34 +156,6 @@ local function claimAndNext()
     end
 end
 
-local function enableBestTpForTask(taskIndex)
-    local toggleName = taskToBestTpToggle[taskIndex]
-    if toggleName and _G[toggleName] and type(_G[toggleName]) == "function" then
-        -- Ensure character is ready
-        if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            task.wait(1.5)
-        end
-        
-        pcall(_G[toggleName], true)
-        task.wait(3)  -- give ABAPremium time to teleport
-    end
-end
-
-local function disableBestTpForTask(taskIndex)
-    local toggleName = taskToBestTpToggle[taskIndex]
-    if toggleName and _G[toggleName] and type(_G[toggleName]) == "function" then
-        pcall(_G[toggleName], false)
-    end
-end
-
-local function disableAllBestTp()
-    for _, toggleName in pairs(taskToBestTpToggle) do
-        if toggleName and _G[toggleName] and type(_G[toggleName]) == "function" then
-            pcall(_G[toggleName], false)
-        end
-    end
-end
-
 local function parseFormatted(str)
     if not str or str:match("—") or str == "" then return 0 end
     
@@ -207,12 +174,6 @@ local function trainUntilDone(taskIndex, targetRaw)
     local statID = taskToStatID[taskIndex]
     if not statID or not targetRaw then return end
     
-    -- Enable best area TP
-    enableBestTpForTask(taskIndex)
-    
-    -- Short settle before training
-    task.wait(0.5)
-    
     while _G.BoomQuestRunning do
         local data = _G.GetBoomQuestDisplayData and _G.GetBoomQuestDisplayData()
         if not data or not data.tasks then
@@ -226,21 +187,19 @@ local function trainUntilDone(taskIndex, targetRaw)
             continue
         end
         
-        -- Split on "/" (simple and safe)
+        -- Simple split on "/"
         local split = string.split(progStr, "/")
-        if #split < 2 then 
+        if #split < 2 then
             task.wait(2)
-            continue 
+            continue
         end
         
-        -- Trim each part
         local currentPart = split[1]:gsub("^%s*(.-)%s*$", "%1")
         local reqPart     = split[2]:gsub("^%s*(.-)%s*$", "%1")
         
         local currentVal = parseFormatted(currentPart)
         
         if currentVal >= targetRaw then
-            disableBestTpForTask(taskIndex)
             break
         end
         
@@ -268,7 +227,6 @@ _G.ToggleAutoQuestBoom = function(enabled)
                 end
 
                 if data.isCompleted then
-                    disableAllBestTp()
                     claimAndNext()
                     task.wait(4.5)
                 else
@@ -280,15 +238,14 @@ _G.ToggleAutoQuestBoom = function(enabled)
                             continue
                         end
                         
-                        local parts = {}
-                        for part in (progStr .. "/"):gmatch("([^/]+)/") do
-                            table.insert(parts, part:gsub("^%s*(.-)%s*$", "%1"))
-                        end
+                        local split = string.split(progStr, "/")
+                        if #split < 2 then continue end
                         
-                        if #parts < 2 then continue end
+                        local curPart = split[1]:gsub("^%s*(.-)%s*$", "%1")
+                        local reqPart = split[2]:gsub("^%s*(.-)%s*$", "%1")
                         
-                        local curVal = parseFormatted(parts[1])
-                        local reqVal = parseFormatted(parts[2])
+                        local curVal = parseFormatted(curPart)
+                        local reqVal = parseFormatted(reqPart)
                         
                         if curVal < reqVal then
                             trainUntilDone(i, reqVal)
@@ -304,11 +261,8 @@ _G.ToggleAutoQuestBoom = function(enabled)
                 
                 task.wait(1.2)
             end
-            
-            disableAllBestTp()
         end)
     else
         _G.BoomQuestRunning = false
-        disableAllBestTp()
     end
 end
