@@ -226,17 +226,18 @@ local function trainUntilDone(taskIndex, targetRaw)
             continue
         end
         
-        local parts = {}
-        for part in (progStr .. "/"):gmatch("([^/]+)/") do
-            table.insert(parts, part:gsub("^%s*(.-)%s*$", "%1"))
-        end
-        
-        if #parts < 2 then 
+        -- Split on "/" (simple and safe)
+        local split = string.split(progStr, "/")
+        if #split < 2 then 
             task.wait(2)
             continue 
         end
         
-        local currentVal = parseFormatted(parts[1])
+        -- Trim each part
+        local currentPart = split[1]:gsub("^%s*(.-)%s*$", "%1")
+        local reqPart     = split[2]:gsub("^%s*(.-)%s*$", "%1")
+        
+        local currentVal = parseFormatted(currentPart)
         
         if currentVal >= targetRaw then
             disableBestTpForTask(taskIndex)
