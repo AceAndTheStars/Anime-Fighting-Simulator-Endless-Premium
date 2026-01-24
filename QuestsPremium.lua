@@ -1,4 +1,4 @@
--- QuestsPremium.lua - SEQUENTIAL AUTO QUEST + SELF-CONTAINED TRAINING LOOP
+-- QuestsPremium.lua - Boom Quest Auto (clean rebuild)
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -6,13 +6,10 @@ local player = Players.LocalPlayer
 
 local RemoteEvent = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("RemoteEvent")
 
-local BOOM_NPC_CFRAME = CFrame.new(
-    -33.017746, 80.2238693, 3.40424752,
-    -0.0262032673, -4.25549507e-09, 0.999656618,
-    3.95084276e-09, 1, 4.36051728e-09,
-    -0.999656618, 4.06374623e-09, -0.0262032673
-)
+-- Boom NPC position
+local BOOM_NPC_CFRAME = CFrame.new(-33.017746, 80.2238693, 3.40424752, -0.0262032673, 0, 0.999656618, 0, 1, 0, -0.999656618, 0, -0.0262032673)
 
+-- Entrance positions
 local EntrancePositions = {
     Strength = {
         Vector3.new(-6.535,    65.000,  127.964),
@@ -102,42 +99,37 @@ local PortalMap = {
 }
 
 local statConfig = {
-    [1] = {name = "Strength"},
-    [2] = {name = "Durability"},
-    [3] = {name = "Chakra"},
-    [4] = {name = "Sword"},
-    [5] = {name = "Agility"},
-    [6] = {name = "Speed"}
+    [1] = "Strength",
+    [2] = "Durability",
+    [3] = "Chakra",
+    [4] = "Sword",
+    [5] = "Agility",
+    [6] = "Speed"
 }
 
 local TrainingActive = {}
 
-local function GetTrainId(statName)
-    if statName == "Strength"   then return 1 end
-    if statName == "Durability" then return 2 end
-    if statName == "Chakra"     then return 3 end
-    if statName == "Sword"      then return 4 end
-    if statName == "Speed"      then return 5 end
-    if statName == "Agility"    then return 6 end
-    return nil
+local function GetTrainId(name)
+    local ids = {Strength = 1, Durability = 2, Chakra = 3, Sword = 4, Speed = 5, Agility = 6}
+    return ids[name]
 end
 
-local function StartTraining(statName)
-    if TrainingActive[statName] then return end
-    TrainingActive[statName] = true
+local function StartTraining(name)
+    if TrainingActive[name] then return end
+    TrainingActive[name] = true
 
     task.spawn(function()
-        if statName == "Sword" then
+        if name == "Sword" then
             pcall(function()
                 RemoteEvent:FireServer("ActivateSword")
             end)
         end
 
-        while TrainingActive[statName] do
-            local id = GetTrainId(statName)
+        while TrainingActive[name] do
+            local id = GetTrainId(name)
             if id then
                 pcall(function()
-                    if statName == "Speed" or statName == "Agility" then
+                    if name == "Speed" or name == "Agility" then
                         RemoteEvent:FireServer("Train", 5)
                         RemoteEvent:FireServer("Train", 6)
                     else
@@ -150,17 +142,17 @@ local function StartTraining(statName)
     end)
 end
 
-local function StopTraining(statName)
-    TrainingActive[statName] = false
+local function StopTraining(name)
+    TrainingActive[name] = false
 end
 
 local function getCurrentQuestData()
-    local quests = player.Quests
+    local quests = player:FindFirstChild("Quests")
     if not quests then return nil end
 
     local folder = nil
     for _, child in ipairs(quests:GetChildren()) do
-        if child:IsA("Folder") and string.match(child.Name, "^Boom%d+$") then
+        if child:IsA("Folder") and string.find(child.Name, "^Boom%d+$") then
             folder = child
             break
         end
@@ -168,14 +160,14 @@ local function getCurrentQuestData()
 
     if not folder then return nil end
 
-    local progress = folder.Progress
-    local reqs = folder.Requirements
+    local progress = folder:FindFirstChild("Progress")
+    local reqs = folder:FindFirstChild("Requirements")
     if not progress or not reqs then return nil end
 
     local tasks = {}
     for i = 1, 6 do
-        local p = progress[tostring(i)]
-        local r = reqs[tostring(i)]
+        local p = progress:FindFirstChild(tostring(i))
+        local r = reqs:FindFirstChild(tostring(i))
         tasks[i] = {
             current = p and p.Value or 0,
             required = r and r.Value or 0
@@ -196,7 +188,7 @@ _G.GetBoomQuestDisplayData = function()
 
     for i = 1, 6 do
         local t = data.tasks[i]
-        local name = statConfig[i].name or ("Task " .. i)
+        local name = statConfig[i] or ("Task " .. i)
         table.insert(tasksDisplay, name .. ": " .. formatNumber(t.current) .. " / " .. formatNumber(t.required))
 
         if t.required > 0 and t.current < t.required then
@@ -211,31 +203,29 @@ _G.GetBoomQuestDisplayData = function()
 end
 
 local function getBestEntrance(statId)
-    local statName = statConfig[statId].name
-    local key, positionsKey
-    if statName == "Strength"   then key, positionsKey = "1", "Strength"
-    elseif statName == "Durability" then key, positionsKey = "2", "Durability"
-    elseif statName == "Chakra" then key, positionsKey = "3", "Chakra"
-    elseif statName == "Speed" or statName == "Agility" then key, positionsKey = "5", "SpeedAgility"
+    local name = statConfig[statId]
+    local key, posKey
+    if name == "Strength" then key, posKey = "1", "Strength"
+    elseif name == "Durability" then key, posKey = "2", "Durability"
+    elseif name == "Chakra" then key, posKey = "3", "Chakra"
+    elseif name == "Speed" or name == "Agility" then key, posKey = "5", "SpeedAgility"
     else return nil end
 
     local current = player.Stats and player.Stats:FindFirstChild(key) and player.Stats[key].Value or 0
-    if current <= 0 then return EntrancePositions[positionsKey][1] end
+    if current <= 0 then return EntrancePositions[posKey][1] end
 
     local index = 1
     for i = #TierRequirements, 1, -1 do
         if current >= TierRequirements[i] then index = i break end
     end
 
-    return EntrancePositions[positionsKey][index] or EntrancePositions[positionsKey][1]
+    return EntrancePositions[posKey][index]
 end
 
 local function getInsidePosition(statId)
-    local statName = statConfig[statId].name
-    local statKey = (statName == "Speed" or statName == "Agility") and "SpeedAgility" or statName
-    local key = statName == "Speed" and "5" or statName == "Agility" and "6" or
-                statName == "Strength" and "1" or
-                statName == "Durability" and "2" or "3"
+    local name = statConfig[statId]
+    local key = name == "Speed" and "5" or name == "Agility" and "6" or
+                name == "Strength" and "1" or name == "Durability" and "2" or "3"
     local current = player.Stats and player.Stats:FindFirstChild(key) and player.Stats[key].Value or 0
 
     local index = 1
@@ -243,51 +233,49 @@ local function getInsidePosition(statId)
         if current >= TierRequirements[i] then index = i break end
     end
 
+    local statKey = (name == "Speed" or name == "Agility") and "SpeedAgility" or name
     return InsidePositions[statKey] and InsidePositions[statKey][index]
 end
 
 local function tpToBestTraining(statId)
-    local entrancePos = getBestEntrance(statId)
-    if not entrancePos then return end
+    local entrance = getBestEntrance(statId)
+    if not entrance then return end
 
-    local insidePos = getInsidePosition(statId)
-    local targetPos = insidePos or entrancePos
+    local inside = getInsidePosition(statId)
+    local target = inside or entrance
 
     local char = player.Character or player.CharacterAdded:Wait()
     local hrp = char:WaitForChild("HumanoidRootPart", 5)
     if not hrp then return end
 
-    local dist = (hrp.Position - targetPos).Magnitude
+    local dist = (hrp.Position - target).Magnitude
     if dist <= 45 then
-        StartTraining(statConfig[statId].name)
+        StartTraining(statConfig[statId])
         return
     end
 
-    hrp.CFrame = CFrame.new(targetPos)
+    hrp.CFrame = CFrame.new(target)
 
-    if not insidePos then
-        local statName = statConfig[statId].name
-        local statKey = (statName == "Speed" or statName == "Agility") and "SpeedAgility" or statName
-        local key = statName == "Speed" and "5" or statName == "Agility" and "6" or
-                    statName == "Strength" and "1" or
-                    statName == "Durability" and "2" or "3"
+    if not inside then
+        local name = statConfig[statId]
+        local key = name == "Speed" and "5" or name == "Agility" and "6" or
+                    name == "Strength" and "1" or name == "Durability" and "2" or "3"
         local current = player.Stats and player.Stats:FindFirstChild(key) and player.Stats[key].Value or 0
 
-        local tierIndex = 1
+        local index = 1
         for i = #TierRequirements, 1, -1 do
-            if current >= TierRequirements[i] then
-                tierIndex = i
-                break
-            end
+            if current >= TierRequirements[i] then index = i break end
         end
 
-        local portalPath = PortalMap[statKey] and PortalMap[statKey][tierIndex]
-        if portalPath then
+        local path = PortalMap[name == "Speed" or name == "Agility" and "SpeedAgility" or name]
+        local portal = path and path[index]
+
+        if portal then
             task.spawn(function()
                 task.wait(1.5)
                 pcall(function()
-                    local folder = workspace:WaitForChild("Scriptable"):WaitForChild("NPC"):WaitForChild("Teleport")
-                    local cd = folder:WaitForChild(portalPath):WaitForChild("ClickBox"):WaitForChild("ClickDetector")
+                    local f = workspace.Scriptable.NPC.Teleport
+                    local cd = f[portal].ClickBox.ClickDetector
                     fireclickdetector(cd)
                 end)
             end)
@@ -301,16 +289,14 @@ local function tpToBoom()
         local char = player.Character or player.CharacterAdded:Wait()
         local hrp = char:WaitForChild("HumanoidRootPart", 5)
         if not hrp then return end
-        
+
         hrp.CFrame = BOOM_NPC_CFRAME * CFrame.new(0, 0, -4.5)
-        
+
         task.wait(0.3)
-        
-        local clickDetector = workspace.Scriptable.NPC.Quest.Boom.ClickBox.ClickDetector
-        if clickDetector then
-            fireclickdetector(clickDetector)
-        end
-        
+
+        local cd = workspace.Scriptable.NPC.Quest.Boom.ClickBox.ClickDetector
+        if cd then fireclickdetector(cd) end
+
         task.wait(2.5)
     end)
 end
@@ -320,9 +306,7 @@ local autoLoop = false
 _G.ToggleAutoQuestBoom = function(enabled)
     autoLoop = enabled
     if not enabled then
-        for stat in pairs(TrainingActive) do
-            StopTraining(stat)
-        end
+        for _, v in pairs(TrainingActive) do v = false end
         return
     end
 
@@ -337,16 +321,11 @@ _G.ToggleAutoQuestBoom = function(enabled)
             local isDone = true
             for i = 1, 6 do
                 local t = data.tasks[i]
-                if t.required > 0 and t.current < t.required then
-                    isDone = false
-                    break
-                end
+                if t.required > 0 and t.current < t.required then isDone = false break end
             end
 
             if isDone then
-                for stat in pairs(TrainingActive) do
-                    StopTraining(stat)
-                end
+                for _, v in pairs(TrainingActive) do v = false end
                 tpToBoom()
                 task.wait(5)
                 continue
@@ -361,22 +340,18 @@ _G.ToggleAutoQuestBoom = function(enabled)
                 end
             end
 
-            for stat in pairs(TrainingActive) do
-                if stat ~= (targetI and statConfig[targetI].name) then
-                    StopTraining(stat)
-                end
+            for k in pairs(TrainingActive) do
+                if k ~= (targetI and statConfig[targetI]) then TrainingActive[k] = false end
             end
 
             if targetI then
                 tpToBestTraining(targetI)
-                StartTraining(statConfig[targetI].name)
+                StartTraining(statConfig[targetI])
             end
 
             task.wait(1.5)
         end
 
-        for stat in pairs(TrainingActive) do
-            StopTraining(stat)
-        end
+        for _, v in pairs(TrainingActive) do v = false end
     end)
 end
