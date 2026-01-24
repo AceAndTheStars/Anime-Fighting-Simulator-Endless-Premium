@@ -1,4 +1,9 @@
--- QuestsPremium.lua - Clean & Silent Version (no console output at all)
+-- QuestsPremium.lua - Enhanced Display (Stat Names for Tasks 1-6)
+-- Changes:
+-- * Task 1-6 now show STAT NAMES instead of "Task X":
+--   1 = Strength, 2 = Durability, 3 = Chakra, 4 = Sword, 5 = Agility, 6 = Speed
+-- * If >6 tasks or unknown: Falls back to "Task X"
+-- * Keeps everything else identical (silent, clean, placeholder auto)
 
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
@@ -23,6 +28,16 @@ local function formatNumber(num)
     local formatted = string.format("%.1f%s", value, suffixes[i] or "")
     return formatted:gsub("%.0$", "")
 end
+
+-- NEW: Stat mapping for Boom quest tasks (based on Requirements/Progress index)
+local statNames = {
+    [1] = "Strength",
+    [2] = "Durability", 
+    [3] = "Chakra",
+    [4] = "Sword",
+    [5] = "Agility",
+    [6] = "Speed"
+}
 
 local function getBoomQuestData()
     local questsFolder = player:FindFirstChild("Quests")
@@ -90,7 +105,9 @@ local function getBoomQuestData()
         local current = (progValue and type(progValue.Value) == "number") and progValue.Value or 0
         local needed  = (reqValue  and type(reqValue.Value) == "number") and reqValue.Value or 0
 
-        table.insert(tasks, "Task " .. i .. ": " .. formatNumber(current) .. " / " .. formatNumber(needed))
+        -- NEW: Use stat name for tasks 1-6, fallback to "Task X"
+        local taskName = statNames[i] or ("Task " .. i)
+        table.insert(tasks, taskName .. ": " .. formatNumber(current) .. " / " .. formatNumber(needed))
 
         if current >= needed and needed > 0 then
             completedCount = completedCount + 1
