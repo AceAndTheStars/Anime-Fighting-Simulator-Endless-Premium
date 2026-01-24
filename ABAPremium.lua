@@ -1,6 +1,7 @@
 -- ABAPremium.lua - Auto Best Area TP + Manual Training Loop (self-contained)
 -- Updated with NEW high-end tiers 2026 + Portal Auto-Click + Built-in Training
 -- Uses 0.1s loop instead of Heartbeat
+-- FIXED: uses separate entrance vs inside positions for portal zones → no bounce loop
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -8,8 +9,8 @@ local LocalPlayer = Players.LocalPlayer
 
 local RemoteEvent = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("RemoteEvent")
 
--- Positions - exact coordinates (no offset added)
-local TrainingPositions = {
+-- Entrance positions (where you click the portal/NPC)
+local EntrancePositions = {
     Strength = {
         Vector3.new(-6.535,    65.000,  127.964),   -- 1: [100]
         Vector3.new(1341.183, 153.963, -134.552),   -- 2: [10K]
@@ -69,6 +70,19 @@ local TrainingPositions = {
         Vector3.new(-386.277, 105.000, -47.382),
         Vector3.new(3484.517,  60.000, 144.701),
         Vector3.new(4111.812,  60.922, 849.557),
+    }
+}
+
+-- Inside positions (after portal activation) — only for portal zones
+local InsidePositions = {
+    Durability = {
+        [8] = Vector3.new(-2695.975, -229.010, 352.760),  -- 100B Durability inside
+    },
+    Chakra = {
+        [12] = Vector3.new(3254.880, -440.978, -242.199),  -- 1qn Chakra inside
+    },
+    SpeedAgility = {
+        [2] = Vector3.new(-416.484, 121.465, -77.764),     -- 10K Speed & Agility inside
     }
 }
 
@@ -156,7 +170,7 @@ local function GetBestTierIndex(current)
     return bestIndex
 end
 
-local function GetBestPosition(statName)
+local function GetBestEntrancePosition(statName)
     local key, positionsKey
     if statName == "Strength"   then key, positionsKey = "1", "Strength"
     elseif statName == "Durability" then key, positionsKey = "2", "Durability"
@@ -166,15 +180,15 @@ local function GetBestPosition(statName)
     else return nil end
 
     local current = GetStatValue(key)
-    if current <= 0 then return TrainingPositions[positionsKey][1] end
+    if current <= 0 then return EntrancePositions[positionsKey][1] end
 
     local index = GetBestTierIndex(current)
-    local pos = TrainingPositions[positionsKey][index] or TrainingPositions[positionsKey][1]
+    local pos = EntrancePositions[positionsKey][index] or EntrancePositions[positionsKey][1]
     return pos
 end
 
 -- ────────────────────────────────────────────────
--- Teleport + portal + START TRAINING when close
+-- Main logic: Teleport + portal + training
 -- ────────────────────────────────────────────────
 
 local function teleportToBest(statName)
@@ -183,51 +197,55 @@ local function teleportToBest(statName)
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
 
-    local targetPos = GetBestPosition(statName)
-    if not targetPos then return end
+    -- Get current best tier
+    local statKey = (statName == "Speed" or statName == "Agility") and "SpeedAgility" or statName
+    local current = GetStatValue(
+        statName == "Speed" and "5" or
+        statName == "Agility" and "6" or
+        statName == "Strength" and "1" or
+        statName == "Durability" and "2" or "3"
+    )
+    local tierIndex = GetBestTierIndex(current)
+
+    -- Get entrance and inside positions
+    local entrancePos = GetBestEntrancePosition(statName)
+    if not entrancePos then return end
+
+    local insidePos = InsidePositions[statKey] and InsidePositions[statKey][tierIndex]
+
+    -- Decide current target
+    local targetPos = insidePos or entrancePos
 
     local dist = (hrp.Position - targetPos).Magnitude
 
+    -- If already close → train and stay
     if dist <= 45 then
-        -- Already in zone → ensure training is active
         StartTraining(statName)
         return
     end
 
-    -- Exact teleport (no offset)
+    -- Teleport to current target (entrance or inside)
     hrp.CFrame = CFrame.new(targetPos)
 
-    -- Portal auto-click if required for this tier
-    local statKey = (statName == "Speed" or statName == "Agility") and "SpeedAgility" or statName
-    local statMap = PortalMap[statKey]
-    if statMap then
-        local current = GetStatValue(
-            statName == "Speed" and "5" or
-            statName == "Agility" and "6" or
-            statName == "Strength" and "1" or
-            statName == "Durability" and "2" or "3"
-        )
-        local tierIndex = GetBestTierIndex(current)
-        local portalPath = statMap[tierIndex]
-
+    -- If we still need to click portal (only when targeting entrance)
+    if not insidePos and PortalMap[statKey] then
+        local portalPath = PortalMap[statKey][tierIndex]
         if portalPath then
             task.spawn(function()
-                task.wait(1.2)  -- wait for area/portal to load
+                task.wait(1.5)  -- increased slightly to give portal UI time to appear
                 pcall(function()
-                    local folder = workspace:WaitForChild("Scriptable"):WaitForChild("NPC"):WaitForChild("Teleport")
-                    local clickDetector = folder:WaitForChild(portalPath):WaitForChild("ClickBox"):WaitForChild("ClickDetector")
-                    fireclickdetector(clickDetector)
+                    local folder = workspace:WaitForChild("Scriptable", 8):WaitForChild("NPC", 8):WaitForChild("Teleport", 8)
+                    local clickDetector = folder:WaitForChild(portalPath, 5):WaitForChild("ClickBox", 5):WaitForChild("ClickDetector", 3)
+                    if clickDetector then
+                        fireclickdetector(clickDetector)
+                    end
                 end)
             end)
         end
-    end
 
-    -- Short delay after teleport before starting training
-    task.delay(1.5, function()
-        if char and hrp and (hrp.Position - targetPos).Magnitude <= 60 then
-            StartTraining(statName)
-        end
-    end)
+        -- Give the game time to teleport player inside before next check
+        task.wait(3)  -- ← key change: longer wait after click to avoid bounce
+    end
 end
 
 -- ────────────────────────────────────────────────
@@ -262,7 +280,7 @@ local function StartTp(statName)
 
             teleportToBest(statName)
 
-            task.wait(0.1)  -- ← 0.1 second delay between checks/teleports
+            task.wait(0.1)  -- 0.1 second delay between checks/teleports
         end
 
         StopTraining(statName)
