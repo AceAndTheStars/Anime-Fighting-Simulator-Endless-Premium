@@ -155,7 +155,7 @@ local function StopTraining(statName)
 end
 
 local function getCurrentQuestData()
-    local quests = player:FindFirstChild("Quests")
+    local quests = player.Quests
     if not quests then return nil end
 
     local folder = nil
@@ -168,21 +168,21 @@ local function getCurrentQuestData()
 
     if not folder then return nil end
 
-    local progress = folder:FindFirstChild("Progress")
-    local reqs = folder:FindFirstChild("Requirements")
+    local progress = folder.Progress
+    local reqs = folder.Requirements
     if not progress or not reqs then return nil end
 
     local tasks = {}
     for i = 1, 6 do
-        local p = progress:FindFirstChild(tostring(i))
-        local r = reqs:FindFirstChild(tostring(i))
+        local p = progress[tostring(i)]
+        local r = reqs[tostring(i)]
         tasks[i] = {
             current = p and p.Value or 0,
             required = r and r.Value or 0
         }
     end
 
-    return {tasks = tasks, folder = folder}
+    return {tasks = tasks}
 end
 
 _G.GetBoomQuestDisplayData = function()
@@ -195,7 +195,7 @@ _G.GetBoomQuestDisplayData = function()
     local isDone = true
 
     for i = 1, 6 do
-        local t = data.tasks[i] or {current = 0, required = 0}
+        local t = data.tasks[i]
         local name = statConfig[i].name or ("Task " .. i)
         table.insert(tasksDisplay, name .. ": " .. formatNumber(t.current) .. " / " .. formatNumber(t.required))
 
@@ -306,13 +306,7 @@ local function tpToBoom()
         
         task.wait(0.3)
         
-        local clickDetector = workspace:FindFirstChild("Scriptable") and
-                              workspace.Scriptable:FindFirstChild("NPC") and
-                              workspace.Scriptable.NPC:FindFirstChild("Quest") and
-                              workspace.Scriptable.NPC.Quest:FindFirstChild("Boom") and
-                              workspace.Scriptable.NPC.Quest.Boom:FindFirstChild("ClickBox") and
-                              workspace.Scriptable.NPC.Quest.Boom.ClickBox:FindFirstChild("ClickDetector")
-        
+        local clickDetector = workspace.Scriptable.NPC.Quest.Boom.ClickBox.ClickDetector
         if clickDetector then
             fireclickdetector(clickDetector)
         end
