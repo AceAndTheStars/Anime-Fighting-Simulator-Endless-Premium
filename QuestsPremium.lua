@@ -1,5 +1,5 @@
 -- QuestsPremium.lua - SEQUENTIAL AUTO QUEST + SELF-CONTAINED TRAINING LOOP
--- FIXED: correct Boom folder pattern (Boom27, Boom28, etc.) + super-safe display
+-- FIXED: correct Boom folder pattern + safe display (no "Quest read error")
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -7,7 +7,7 @@ local player = Players.LocalPlayer
 
 local RemoteEvent = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("RemoteEvent")
 
--- Boom NPC entrance CFrame
+-- Boom NPC CFrame
 local BOOM_NPC_CFRAME = CFrame.new(
     -33.017746, 80.2238693, 3.40424752,
     -0.0262032673, -4.25549507e-09, 0.999656618,
@@ -79,7 +79,7 @@ local EntrancePositions = {
     }
 }
 
--- Inside positions after portal
+-- Inside positions
 local InsidePositions = {
     Durability = {
         [8] = Vector3.new(-2695.975, -229.010, 352.760),
@@ -162,19 +162,16 @@ local function StopTraining(statName)
     TrainingActive[statName] = false
 end
 
--- Safe quest data reader
+-- Safe quest data
 local function getCurrentQuestData()
     local quests = player:FindFirstChild("Quests")
     if not quests then return nil end
 
-    local highest, folder = -1, nil
+    local folder = nil
     for _, child in ipairs(quests:GetChildren()) do
-        if child:IsA("Folder") then
-            local n = tonumber(string.match(child.Name, "^Boom(%d+)$"))
-            if n and n > highest then
-                highest = n
-                folder = child
-            end
+        if child:IsA("Folder") and string.match(child.Name, "^Boom%d+$") then
+            folder = child
+            break  -- take the first Boom folder (usually the active one)
         end
     end
 
@@ -189,23 +186,21 @@ local function getCurrentQuestData()
         local p = progress:FindFirstChild(tostring(i))
         local r = reqs:FindFirstChild(tostring(i))
         tasks[i] = {
-            current = (p and type(p.Value) == "number") and p.Value or 0,
-            required = (r and type(r.Value) == "number") and r.Value or 0
+            current = (p and p.Value ~= nil) and p.Value or 0,
+            required = (r and r.Value ~= nil) and r.Value or 0
         }
     end
 
-    return {questNumber = highest, tasks = tasks, folder = folder}
+    return {tasks = tasks, folder = folder}
 end
 
--- Safe display function
+-- Safe display
 _G.GetBoomQuestDisplayData = function()
-    local success, data = pcall(getCurrentQuestData)
-    if not success or not data then
+    local data = getCurrentQuestData()
+    if not data then
         return {
             statusText = "Loading quest data...",
-            tasks = {"—", "—", "—", "—", "—", "—"},
-            questNumber = nil,
-            isCompleted = false
+            tasks = {"—", "—", "—", "—", "—", "—"}
         }
     end
 
@@ -213,7 +208,7 @@ _G.GetBoomQuestDisplayData = function()
     local isDone = true
 
     for i = 1, 6 do
-        local t = data.tasks[i] or {current = 0, required = 0}
+        local t = data.tasks[i]
         local name = statConfig[i] and statConfig[i].name or ("Task " .. i)
         table.insert(tasksDisplay, name .. ": " .. formatNumber(t.current) .. " / " .. formatNumber(t.required))
 
@@ -223,16 +218,14 @@ _G.GetBoomQuestDisplayData = function()
     end
 
     return {
-        statusText = isDone and ("Boom #" .. (data.questNumber or "?") .. " — Completed") or ("Active: Boom #" .. (data.questNumber or "?")),
-        tasks = tasksDisplay,
-        questNumber = data.questNumber,
-        isCompleted = isDone
+        statusText = isDone and "Completed (claim/next)" or "Active quest",
+        tasks = tasksDisplay
     }
 end
 
--- Get best entrance position
+-- Get best entrance
 local function getBestEntrance(statId)
-    local statName = statConfig[statId] and statConfig[statId].name or ""
+    local statName = statConfig[statId].name
     local key, positionsKey
     if statName == "Strength"   then key, positionsKey = "1", "Strength"
     elseif statName == "Durability" then key, positionsKey = "2", "Durability"
@@ -245,18 +238,15 @@ local function getBestEntrance(statId)
 
     local index = 1
     for i = #TierRequirements, 1, -1 do
-        if current >= TierRequirements[i] then
-            index = i
-            break
-        end
+        if current >= TierRequirements[i] then index = i break end
     end
 
     return EntrancePositions[positionsKey][index] or EntrancePositions[positionsKey][1]
 end
 
--- Get inside position
+-- Get inside
 local function getInsidePosition(statId)
-    local statName = statConfig[statId] and statConfig[statId].name or ""
+    local statName = statConfig[statId].name
     local statKey = (statName == "Speed" or statName == "Agility") and "SpeedAgility" or statName
     local key = statName == "Speed" and "5" or statName == "Agility" and "6" or
                 statName == "Strength" and "1" or
@@ -265,16 +255,13 @@ local function getInsidePosition(statId)
 
     local index = 1
     for i = #TierRequirements, 1, -1 do
-        if current >= TierRequirements[i] then
-            index = i
-            break
-        end
+        if current >= TierRequirements[i] then index = i break end
     end
 
     return InsidePositions[statKey] and InsidePositions[statKey][index]
 end
 
--- Teleport to best training area
+-- TP to best
 local function tpToBestTraining(statId)
     local entrancePos = getBestEntrance(statId)
     if not entrancePos then return end
@@ -315,9 +302,9 @@ local function tpToBestTraining(statId)
             task.spawn(function()
                 task.wait(1.5)
                 pcall(function()
-                    local folder = workspace:WaitForChild("Scriptable", 10):WaitForChild("NPC", 10):WaitForChild("Teleport", 10)
-                    local cd = folder:WaitForChild(portalPath, 5):WaitForChild("ClickBox", 5):WaitForChild("ClickDetector", 3)
-                    if cd then fireclickdetector(cd) end
+                    local folder = workspace:WaitForChild("Scriptable"):WaitForChild("NPC"):WaitForChild("Teleport")
+                    local cd = folder:WaitForChild(portalPath):WaitForChild("ClickBox"):WaitForChild("ClickDetector")
+                    fireclickdetector(cd)
                 end)
             end)
             task.wait(3)
@@ -336,10 +323,15 @@ local function tpToBoom()
         
         task.wait(0.3)
         
-        local clickDetector = getBoomClickDetector()
+        local clickDetector = workspace:FindFirstChild("Scriptable") and
+                              workspace.Scriptable:FindFirstChild("NPC") and
+                              workspace.Scriptable.NPC:FindFirstChild("Quest") and
+                              workspace.Scriptable.NPC.Quest:FindFirstChild("Boom") and
+                              workspace.Scriptable.NPC.Quest.Boom:FindFirstChild("ClickBox") and
+                              workspace.Scriptable.NPC.Quest.Boom.ClickBox:FindFirstChild("ClickDetector")
+        
         if clickDetector then
             fireclickdetector(clickDetector)
-            print("Quest Claimed")
         end
         
         task.wait(2.5)
