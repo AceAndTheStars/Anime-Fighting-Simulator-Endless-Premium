@@ -174,6 +174,12 @@ local function trainUntilDone(taskIndex, targetRaw)
     local statID = taskToStatID[taskIndex]
     if not statID or not targetRaw then return end
     
+    -- Enable best area TP
+    enableBestTpForTask(taskIndex)
+    
+    -- Short settle before training
+    task.wait(0.5)
+    
     while _G.BoomQuestRunning do
         local data = _G.GetBoomQuestDisplayData and _G.GetBoomQuestDisplayData()
         if not data or not data.tasks then
@@ -187,19 +193,21 @@ local function trainUntilDone(taskIndex, targetRaw)
             continue
         end
         
-        -- Simple split on "/"
+        -- Split on "/" (simple, no patterns, no insert loop)
         local split = string.split(progStr, "/")
         if #split < 2 then
             task.wait(2)
             continue
         end
         
+        -- Trim both parts
         local currentPart = split[1]:gsub("^%s*(.-)%s*$", "%1")
         local reqPart     = split[2]:gsub("^%s*(.-)%s*$", "%1")
         
         local currentVal = parseFormatted(currentPart)
         
         if currentVal >= targetRaw then
+            disableBestTpForTask(taskIndex)
             break
         end
         
