@@ -1,4 +1,4 @@
--- QuestsPremium.lua - Boom Quest Auto (clean rebuild)
+-- QuestsPremium.lua - Boom Quest Auto (full self-contained version)
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -99,12 +99,12 @@ local PortalMap = {
 }
 
 local statConfig = {
-    [1] = "Strength",
-    [2] = "Durability",
-    [3] = "Chakra",
-    [4] = "Sword",
-    [5] = "Agility",
-    [6] = "Speed"
+    [1] = {name = "Strength"},
+    [2] = {name = "Durability"},
+    [3] = {name = "Chakra"},
+    [4] = {name = "Sword"},
+    [5] = {name = "Agility"},
+    [6] = {name = "Speed"}
 }
 
 local TrainingActive = {}
@@ -146,13 +146,14 @@ local function StopTraining(name)
     TrainingActive[name] = false
 end
 
+-- Quest data reader
 local function getCurrentQuestData()
     local quests = player:FindFirstChild("Quests")
     if not quests then return nil end
 
     local folder = nil
     for _, child in ipairs(quests:GetChildren()) do
-        if child:IsA("Folder") and string.find(child.Name, "^Boom%d+$") then
+        if child:IsA("Folder") and string.match(child.Name, "^Boom%d+$") then
             folder = child
             break
         end
@@ -174,9 +175,10 @@ local function getCurrentQuestData()
         }
     end
 
-    return {tasks = tasks}
+    return {tasks = tasks, questNumber = tonumber(string.match(folder.Name, "%d+")) or "?"}
 end
 
+-- Display function
 _G.GetBoomQuestDisplayData = function()
     local data = getCurrentQuestData()
     if not data then
@@ -187,8 +189,8 @@ _G.GetBoomQuestDisplayData = function()
     local isDone = true
 
     for i = 1, 6 do
-        local t = data.tasks[i]
-        local name = statConfig[i] or ("Task " .. i)
+        local t = data.tasks[i] or {current = 0, required = 0}
+        local name = statConfig[i].name or ("Task " .. i)
         table.insert(tasksDisplay, name .. ": " .. formatNumber(t.current) .. " / " .. formatNumber(t.required))
 
         if t.required > 0 and t.current < t.required then
@@ -196,14 +198,16 @@ _G.GetBoomQuestDisplayData = function()
         end
     end
 
+    local qNum = data.questNumber
     return {
-        statusText = isDone and "Completed" or "Active",
+        statusText = isDone and ("Boom quest #" .. qNum .. " - Completed") or ("Boom quest active: #" .. qNum),
         tasks = tasksDisplay
     }
 end
 
+-- Best entrance position
 local function getBestEntrance(statId)
-    local name = statConfig[statId]
+    local name = statConfig[statId].name
     local key, posKey
     if name == "Strength" then key, posKey = "1", "Strength"
     elseif name == "Durability" then key, posKey = "2", "Durability"
@@ -222,8 +226,9 @@ local function getBestEntrance(statId)
     return EntrancePositions[posKey][index]
 end
 
+-- Inside position
 local function getInsidePosition(statId)
-    local name = statConfig[statId]
+    local name = statConfig[statId].name
     local key = name == "Speed" and "5" or name == "Agility" and "6" or
                 name == "Strength" and "1" or name == "Durability" and "2" or "3"
     local current = player.Stats and player.Stats:FindFirstChild(key) and player.Stats[key].Value or 0
@@ -237,6 +242,7 @@ local function getInsidePosition(statId)
     return InsidePositions[statKey] and InsidePositions[statKey][index]
 end
 
+-- TP to best training area
 local function tpToBestTraining(statId)
     local entrance = getBestEntrance(statId)
     if not entrance then return end
@@ -250,14 +256,15 @@ local function tpToBestTraining(statId)
 
     local dist = (hrp.Position - target).Magnitude
     if dist <= 45 then
-        StartTraining(statConfig[statId])
+        StartTraining(statConfig[statId].name)
         return
     end
 
     hrp.CFrame = CFrame.new(target)
 
     if not inside then
-        local name = statConfig[statId]
+        local name = statConfig[statId].name
+        local statKey = (name == "Speed" or name == "Agility") and "SpeedAgility" or name
         local key = name == "Speed" and "5" or name == "Agility" and "6" or
                     name == "Strength" and "1" or name == "Durability" and "2" or "3"
         local current = player.Stats and player.Stats:FindFirstChild(key) and player.Stats[key].Value or 0
@@ -267,7 +274,7 @@ local function tpToBestTraining(statId)
             if current >= TierRequirements[i] then index = i break end
         end
 
-        local path = PortalMap[name == "Speed" or name == "Agility" and "SpeedAgility" or name]
+        local path = PortalMap[statKey]
         local portal = path and path[index]
 
         if portal then
@@ -284,6 +291,7 @@ local function tpToBestTraining(statId)
     end
 end
 
+-- Claim Boom quest
 local function tpToBoom()
     pcall(function()
         local char = player.Character or player.CharacterAdded:Wait()
@@ -301,6 +309,7 @@ local function tpToBoom()
     end)
 end
 
+-- Toggle
 local autoLoop = false
 
 _G.ToggleAutoQuestBoom = function(enabled)
@@ -341,12 +350,12 @@ _G.ToggleAutoQuestBoom = function(enabled)
             end
 
             for k in pairs(TrainingActive) do
-                if k ~= (targetI and statConfig[targetI]) then TrainingActive[k] = false end
+                if k ~= (targetI and statConfig[targetI].name) then TrainingActive[k] = false end
             end
 
             if targetI then
                 tpToBestTraining(targetI)
-                StartTraining(statConfig[targetI])
+                StartTraining(statConfig[targetI].name)
             end
 
             task.wait(1.5)
