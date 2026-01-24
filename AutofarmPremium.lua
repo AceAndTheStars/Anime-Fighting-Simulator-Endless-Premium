@@ -46,50 +46,40 @@ end
 _G.ToggleAutoStrength = function(value)
     if value then
         startStat("Strength", 1)
-        game.StarterGui:SetCore("SendNotification", {Title = "Autofarm", Text = "Strength Enabled", Duration = 4})
     else
         stopStat("Strength")
-        game.StarterGui:SetCore("SendNotification", {Title = "Autofarm", Text = "Strength Disabled", Duration = 4})
     end
 end
 
 _G.ToggleAutoDurability = function(value)
     if value then
         startStat("Durability", 2)
-        game.StarterGui:SetCore("SendNotification", {Title = "Autofarm", Text = "Durability Enabled", Duration = 4})
     else
         stopStat("Durability")
-        game.StarterGui:SetCore("SendNotification", {Title = "Autofarm", Text = "Durability Disabled", Duration = 4})
     end
 end
 
 _G.ToggleAutoChakra = function(value)
     if value then
         startStat("Chakra", 3)
-        game.StarterGui:SetCore("SendNotification", {Title = "Autofarm", Text = "Chakra Enabled", Duration = 4})
     else
         stopStat("Chakra")
-        game.StarterGui:SetCore("SendNotification", {Title = "Autofarm", Text = "Chakra Disabled", Duration = 4})
     end
 end
 
 _G.ToggleAutoSword = function(value)
     if value then
         startStat("Sword", 4, true)  -- true = equip sword once
-        game.StarterGui:SetCore("SendNotification", {Title = "Autofarm", Text = "Sword Enabled (equipped)", Duration = 4})
     else
         stopStat("Sword")
-        game.StarterGui:SetCore("SendNotification", {Title = "Autofarm", Text = "Sword Disabled", Duration = 4})
     end
 end
 
 _G.ToggleAutoSpeedAgility = function(value)
     if value then
         startStat("SpeedAgility", nil)  -- no single ID, handled inside
-        game.StarterGui:SetCore("SendNotification", {Title = "Autofarm", Text = "Speed & Agility Enabled", Duration = 4})
     else
         stopStat("SpeedAgility")
-        game.StarterGui:SetCore("SendNotification", {Title = "Autofarm", Text = "Speed & Agility Disabled", Duration = 4})
     end
 end
 
@@ -98,11 +88,4 @@ _G.StopAllAutofarms = function()
     for stat, _ in pairs(statsRunning) do
         statsRunning[stat] = false
     end
-    game.StarterGui:SetCore("SendNotification", {Title = "Autofarm", Text = "All autofarms stopped", Duration = 5})
 end
-
-game.StarterGui:SetCore("SendNotification", {
-    Title = "Autofarm Module Loaded",
-    Text = "Standalone stat autofarms ready! Toggle from your hub.",
-    Duration = 6
-})
