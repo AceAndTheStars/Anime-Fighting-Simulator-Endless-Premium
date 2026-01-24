@@ -1,26 +1,28 @@
--- ABAPremium.lua - Auto Best Area TP (Updated with Speed & Agility)
--- Conservative: only moves when stat >= threshold
+-- ABAPremium.lua - Auto Best Area TP (Updated with NEW high-end tiers 2026)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
--- Positions
+-- Positions - old ones + NEW high-end areas
 local TrainingPositions = {
     Strength = {
-        Vector3.new(-6.535,    65.000,  127.964),   -- [100]
-        Vector3.new(1341.183, 153.963, -134.552),   -- [10K]
-        Vector3.new(-1247.836,  59.000, 481.151),   -- [100K]
-        Vector3.new(-905.422,   84.882, 170.033),   -- [1M]
-        Vector3.new(-2257.115, 617.105, 546.753),   -- [10M]
-        Vector3.new(-51.014,    63.736, -1302.732), -- [100M]
-        Vector3.new(714.433,   151.732, 926.474),   -- [1B]
-        Vector3.new(1846.153,  141.200,  90.468),   -- [100B]
-        Vector3.new(604.720,   653.458, 413.728),   -- [5T]
-        Vector3.new(4284.651,   60.000, -534.592),  -- [250T]
-        Vector3.new(797.981,   232.382, -1002.742), -- [75qd]
-        Vector3.new(3873.921,  136.388, 855.103),   -- [2.5QN]
-        Vector3.new(3933.355,  724.772, -1197.858), -- [1sx]
+        Vector3.new(-6.535,    65.000,  127.964),   -- 1: [100]
+        Vector3.new(1341.183, 153.963, -134.552),   -- 2: [10K]
+        Vector3.new(-1247.836,  59.000, 481.151),   -- 3: [100K]
+        Vector3.new(-905.422,   84.882, 170.033),   -- 4: [1M]
+        Vector3.new(-2257.115, 617.105, 546.753),   -- 5: [10M]
+        Vector3.new(-51.014,    63.736, -1302.732), -- 6: [100M]
+        Vector3.new(714.433,   151.732, 926.474),   -- 7: [1B]
+        Vector3.new(1846.153,  141.200,  90.468),   -- 8: [100B]
+        Vector3.new(604.720,   653.458, 413.728),   -- 9: [5T]
+        Vector3.new(4284.651,   60.000, -534.592),  -- 10: [250T]
+        Vector3.new(797.981,   232.382, -1002.742), -- 11: [50qd]
+        Vector3.new(3873.921,  136.388, 855.103),   -- 12: [1qn]
+        Vector3.new(3933.355,  724.772, -1197.858), -- 13: [100QN]
+        Vector3.new(2317.814,  261.246, -625.500),  -- 14: [1sx]
+        Vector3.new(-2359.330, 411.794, 1795.281),  -- 15: [100sx]
+        Vector3.new(-2101.241,1484.821, -2167.363), -- 16: [1SP]
     },
     Durability = {
         Vector3.new(72.340,    69.263,  877.353),
@@ -36,6 +38,9 @@ local TrainingPositions = {
         Vector3.new(165.322,   773.591, -716.061),
         Vector3.new(2590.823,   63.229, 1697.295),
         Vector3.new(1726.687, 2305.067,  61.937),
+        Vector3.new(3485.344,  274.992, 1443.937),  -- 14: [1sx]
+        Vector3.new(-2313.594,  84.296,  -83.242),  -- 15: [100sx]
+        Vector3.new(-1182.596,  82.653, -1886.213), -- 16: [1SP]
     },
     Chakra = {
         Vector3.new(-3.768,    65.000, -117.034),
@@ -51,26 +56,39 @@ local TrainingPositions = {
         Vector3.new(-737.839, 2792.597, 567.334),
         Vector3.new(3151.687,  163.000, -102.653),
         Vector3.new(358.822,   292.742, 1864.116),
+        Vector3.new(-1092.224, 613.690, 1486.990),  -- 14: [1sx]
+        Vector3.new(1412.806,  232.000, -729.297),  -- 15: [100sx]
+        Vector3.new(3346.103,   59.500, -1654.329), -- 16: [1SP]
     },
-    SpeedAgility = {  -- Shared zones for Speed & Agility
-        Vector3.new(-104.639,  61.000, -508.363),   -- [100]
-        Vector3.new(-386.277, 105.000, -47.382),    -- [10K Speed & Agility]
-        Vector3.new(3484.517,  60.000, 144.701),    -- [100K Speed & Agility]
-        Vector3.new(4111.812,  60.922, 849.557),    -- [5M Speed & Agility]
-        -- Add more tiers later if you find higher ones (50M, 500M, etc.)
+    -- SpeedAgility still without new high tiers (you can add later)
+    SpeedAgility = {
+        Vector3.new(-104.639,  61.000, -508.363),
+        Vector3.new(-386.277, 105.000, -47.382),
+        Vector3.new(3484.517,  60.000, 144.701),
+        Vector3.new(4111.812,  60.922, 849.557),
     }
 }
 
--- Tier requirements (same pattern)
+-- Updated thresholds - added the 3 new massive tiers
 local TierRequirements = {
-    0,           -- 1: [100] or lowest
-    10000,       -- 2: [10K]
-    100000,      -- 3: [100K]
-    5000000,     -- 4: [5M]
-    -- No higher — stays at [5M] forever (conservative)
+    0,                        -- 1
+    10000,                    -- 2   [10K]
+    100000,                   -- 3   [100K]
+    1000000,                  -- 4   [1M]
+    10000000,                 -- 5   [10M]
+    100000000,                -- 6   [100M]
+    1000000000,               -- 7   [1B]
+    100000000000,             -- 8   [100B]
+    5000000000000,            -- 9   [5T]
+    250000000000000,          -- 10  [250T]
+    50000000000000000,        -- 11  [50qd]
+    1000000000000000000,      -- 12  [1qn]
+    100000000000000000000,    -- 13  [100QN]
+    1000000000000000000000,   -- 14  [1sx]
+    100000000000000000000000, -- 15  [100sx]
+    1000000000000000000000000 -- 16  [1SP]
 }
 
--- Get current stat value
 local function GetStatValue(key)
     local stats = LocalPlayer:FindFirstChild("Stats")
     if not stats then return 0 end
@@ -78,40 +96,40 @@ local function GetStatValue(key)
     return (obj and (obj:IsA("IntValue") or obj:IsA("NumberValue"))) and obj.Value or 0
 end
 
--- Find highest allowed tier
 local function GetBestTierIndex(current)
-    local best = 1
+    local bestIndex = 1
     for i = #TierRequirements, 1, -1 do
         if current >= TierRequirements[i] then
-            best = i
+            bestIndex = i
             break
         end
     end
-    return best
+    return bestIndex
 end
 
--- Get best position
 local function GetBestPosition(statName)
-    local key, posTable
+    local key, positionsKey
+
     if statName == "Strength" then
-        key, posTable = "1", "Strength"
+        key, positionsKey = "1", "Strength"
     elseif statName == "Durability" then
-        key, posTable = "2", "Durability"
+        key, positionsKey = "2", "Durability"
     elseif statName == "Chakra" then
-        key, posTable = "3", "Chakra"
+        key, positionsKey = "3", "Chakra"
     elseif statName == "Speed" then
-        key, posTable = "5", "SpeedAgility"
+        key, positionsKey = "5", "SpeedAgility"
     elseif statName == "Agility" then
-        key, posTable = "6", "SpeedAgility"
+        key, positionsKey = "6", "SpeedAgility"
     else
         return nil
     end
 
     local current = GetStatValue(key)
-    if current <= 0 then return TrainingPositions[posTable][1] end
+    if current <= 0 then return TrainingPositions[positionsKey][1] end
 
     local index = GetBestTierIndex(current)
-    return TrainingPositions[posTable][index] or TrainingPositions[posTable][1]
+    local pos = TrainingPositions[positionsKey][index]
+    return pos or TrainingPositions[positionsKey][1]
 end
 
 -- Loop controllers
