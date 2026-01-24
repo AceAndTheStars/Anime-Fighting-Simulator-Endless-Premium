@@ -1,8 +1,8 @@
 -- ABAPremium.lua - Auto Best Area TP + Manual Training Loop (self-contained)
 -- Updated with NEW high-end tiers 2026 + Portal Auto-Click + Built-in Training
+-- Uses 0.1s loop instead of Heartbeat
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 
@@ -231,15 +231,15 @@ local function teleportToBest(statName)
 end
 
 -- ────────────────────────────────────────────────
--- Loop & toggle control
+-- Loop & toggle control (0.1s delay loop)
 -- ────────────────────────────────────────────────
 
 local Loops = {
-    Strength   = { Active = false, Connection = nil },
-    Durability = { Active = false, Connection = nil },
-    Chakra     = { Active = false, Connection = nil },
-    Speed      = { Active = false, Connection = nil },
-    Agility    = { Active = false, Connection = nil }
+    Strength   = { Active = false },
+    Durability = { Active = false },
+    Chakra     = { Active = false },
+    Speed      = { Active = false },
+    Agility    = { Active = false }
 }
 
 local function StartTp(statName)
@@ -247,28 +247,32 @@ local function StartTp(statName)
     if loop.Active then return end
     loop.Active = true
 
-    loop.Connection = RunService.Heartbeat:Connect(function()
-        if not loop.Active then
-            StopTraining(statName)
-            return
+    task.spawn(function()
+        while loop.Active do
+            local char = LocalPlayer.Character
+            if not char then 
+                task.wait(0.5) 
+                continue 
+            end
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if not hrp then 
+                task.wait(0.5) 
+                continue 
+            end
+
+            teleportToBest(statName)
+
+            task.wait(0.1)  -- ← 0.1 second delay between checks/teleports
         end
 
-        local char = LocalPlayer.Character
-        if not char then return end
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if not hrp then return end
-
-        teleportToBest(statName)
+        StopTraining(statName)
     end)
 end
 
 local function StopTp(statName)
     local loop = Loops[statName]
-    if not loop.Active then return end
-    loop.Active = false
-    if loop.Connection then
-        loop.Connection:Disconnect()
-        loop.Connection = nil
+    if loop then
+        loop.Active = false
     end
     StopTraining(statName)
 end
@@ -282,11 +286,6 @@ _G.ToggleAutoTpBestAgility    = function(v) if v then StartTp("Agility")    else
 
 -- Cleanup on death/respawn
 LocalPlayer.CharacterRemoving:Connect(function()
-    for _, l in pairs(Loops) do
-        if l.Active and l.Connection then
-            l.Connection:Disconnect()
-        end
-    end
     for stat in pairs(TrainingActive) do
         StopTraining(stat)
     end
