@@ -119,6 +119,20 @@ local taskToStatID = {
     [1] = 1, [2] = 2, [3] = 3, [4] = 4, [5] = 5, [6] = 6
 }
 
+-- Explicit suffix multipliers (full numbers, no scientific notation)
+local phrasing = {
+    [""]   = 1,
+    ["K"]  = 1000,
+    ["M"]  = 1000000,
+    ["B"]  = 1000000000,
+    ["T"]  = 1000000000000,
+    ["QD"] = 1000000000000000,          -- Quadrillion
+    ["QN"] = 1000000000000000000,       -- Quintillion
+    ["SX"] = 1000000000000000000000,    -- Sextillion
+    ["SP"] = 1000000000000000000000000, -- Septillion
+    ["OC"] = 1000000000000000000000000000  -- Octillion
+}
+
 -- ==================== HELPERS ====================
 
 local function teleportToBoom()
@@ -139,24 +153,36 @@ local function claimAndNext()
 end
 
 local function parseFormatted(str)
-    if not str or str:match("—") then return 0 end
+    if not str or str:match("—") or str == "" then return 0 end
+    
     str = str:gsub("%s+", ""):gsub(",", ""):upper()
-    local numStr, suffix = str:match("^([%d%.]+)([KM BTQ]*)$")
+    
+    local numStr, suffix = str:match("^([%d%.]+)([A-Z]*)$")
+    if not numStr then return 0 end
+    
     local num = tonumber(numStr) or 0
-    local mult = ({K=1e3,M=1e6,B=1e9,T=1e12,QD=1e15,QN=1e18,SX=1e21})[suffix] or 1
+    local mult = phrasing[suffix] or 1
+    
     return num * mult
 end
 
 local function trainUntilDone(statID, targetRaw)
-    if not statID then return end
+    if not statID or not targetRaw then return end
     
     while _G.BoomQuestRunning do
         local data = _G.GetBoomQuestDisplayData and _G.GetBoomQuestDisplayData()
         if not data then break end
         
         local progStr = data.tasks[statID] or "— / —"
-        local currentPart = progStr:match("^([^/]+)") or "0"
-        local currentVal = parseFormatted(currentPart)
+        
+        local parts = {}
+        for part in (progStr .. "/"):gmatch("([^/]+)/") do
+            table.insert(parts, part:gsub("^%s*(.-)%s*$", "%1"))
+        end
+        
+        if #parts < 2 then break end
+        
+        local currentVal = parseFormatted(parts[1])
         
         if currentVal >= targetRaw then
             break
@@ -189,27 +215,33 @@ _G.ToggleAutoQuestBoom = function(enabled)
                     claimAndNext()
                     task.wait(4.5)
                 else
-                    local found = false
+                    local trainedSomething = false
                     
                     for i = 1, 6 do
                         local progStr = data.tasks[i] or "— / —"
-                        if progStr ~= "— / —" and progStr ~= "0 / 0" then
-                            local currentPart, reqPart = progStr:match("^([^/]+)%s*/%s*(.+)$")
-                            if currentPart and reqPart then
-                                local curVal = parseFormatted(currentPart)
-                                local reqVal = parseFormatted(reqPart)
-                                
-                                if curVal < reqVal then
-                                    local statID = taskToStatID[i]
-                                    trainUntilDone(statID, reqVal)
-                                    found = true
-                                    break
-                                end
-                            end
+                        if progStr == "— / —" or progStr == "0 / 0" then
+                            continue
+                        end
+                        
+                        local parts = {}
+                        for part in (progStr .. "/"):gmatch("([^/]+)/") do
+                            table.insert(parts, part:gsub("^%s*(.-)%s*$", "%1"))
+                        end
+                        
+                        if #parts < 2 then continue end
+                        
+                        local curVal = parseFormatted(parts[1])
+                        local reqVal = parseFormatted(parts[2])
+                        
+                        if curVal < reqVal then
+                            local statID = taskToStatID[i]
+                            trainUntilDone(statID, reqVal)
+                            trainedSomething = true
+                            break
                         end
                     end
                     
-                    if not found then
+                    if not trainedSomething then
                         task.wait(3)
                     end
                 end
