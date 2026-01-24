@@ -206,21 +206,38 @@ local function trainUntilDone(taskIndex, targetRaw)
     
     while _G.BoomQuestRunning do
         local data = _G.GetBoomQuestDisplayData and _G.GetBoomQuestDisplayData()
-        if not data then break end
+        if not data then 
+            task.wait(2)
+            continue 
+        end
         
-        local progStr = data.tasks[taskIndex] or "— / —"
+        -- Safe access to tasks table and index
+        local tasks = data.tasks
+        if not tasks or type(tasks) ~= "table" then 
+            task.wait(2)
+            continue 
+        end
         
+        local progStr = tasks[taskIndex]
+        if not progStr or type(progStr) ~= "string" then 
+            task.wait(2)
+            continue 
+        end
+        
+        -- Now safe to parse
         local parts = {}
         for part in (progStr .. "/"):gmatch("([^/]+)/") do
             table.insert(parts, part:gsub("^%s*(.-)%s*$", "%1"))
         end
         
-        if #parts < 2 then break end
+        if #parts < 2 then 
+            task.wait(2)
+            continue 
+        end
         
         local currentVal = parseFormatted(parts[1])
         
         if currentVal >= targetRaw then
-            -- Stat done → disable TP for this one
             disableBestTpForTask(taskIndex)
             break
         end
