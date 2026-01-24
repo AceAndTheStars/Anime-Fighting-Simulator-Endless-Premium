@@ -1,4 +1,4 @@
-local isRedeeming = false
+-- CodesPremium.lua — ONLY the codes list + redemption function, NO tabs, NO buttons, NO labels, NO Rayfield, NO prints about tabs
 
 local codes = {
     "YenCode",
@@ -57,15 +57,6 @@ local codes = {
 }
 
 local function redeemAllCodes()
-    if isRedeeming then 
-        print("[Codes] Already running — wait a moment")
-        return 
-    end
-
-    isRedeeming = true
-
-    print("[Codes] Starting redemption (" .. #codes .. " codes) — this will take some time")
-
     local successCount = 0
 
     local remotes = game:GetService("ReplicatedStorage").Remotes
@@ -75,18 +66,13 @@ local function redeemAllCodes()
                       or remotes:FindFirstChild("RemoteFunction")
 
     if not redeemRemote then
-        print("[Codes] ERROR: Could not find the redeem remote in ReplicatedStorage.Remotes")
-        isRedeeming = false
-        return
+        return  -- silently fail, or add print if you want debug
     end
 
     for i, code in ipairs(codes) do
-        print(string.format("[%02d/%02d] Trying: %s", i, #codes, code))
-
         local success, result = pcall(function()
             return redeemRemote:InvokeServer(code)
-            -- If nothing redeems → try changing the line above to:
-            -- return redeemRemote:InvokeServer("Code", code)
+            -- if this doesn't work → try: redeemRemote:InvokeServer("Code", code)
         end)
 
         local redeemed = false
@@ -99,23 +85,13 @@ local function redeemAllCodes()
         end
 
         if redeemed then
-            print("     → SUCCESS!")
             successCount = successCount + 1
-        else
-            print("     → Failed / Already used / Invalid")
         end
 
         task.wait(0.6)
     end
 
-    print("[Codes] Finished! " .. successCount .. "/" .. #codes .. " codes succeeded")
-
-    isRedeeming = false
+    -- optional: return successCount if you want to use it in main script later
 end
 
-CodesTab:CreateButton({
-    Name = "Redeem All Codes",
-    Callback = redeemAllCodes
-})
-
-CodesTab:CreateLabel("Trying all listed codes — most older ones are expired but will be attempted anyway")
+_G.RedeemAllAFSECodes = redeemAllCodes
