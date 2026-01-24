@@ -1,13 +1,32 @@
 -- QuestsPremium.lua - SEQUENTIAL AUTO TRAIN (one stat at a time, toggle-controlled)
+-- Updated for Anime Fighting Simulator: Endless (AFSE) - Boom quest auto-claim via ClickDetector
 
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
--- CONFIG: Boom NPC CFrame (updated with your position + orientation for accurate facing)
-local BOOM_NPC_CFRAME = CFrame.new(-33.017746, 80.2238693, 3.40424752,
+-- CONFIG: Boom NPC CFrame (updated position + orientation)
+local BOOM_NPC_CFRAME = CFrame.new(
+    -33.017746, 80.2238693, 3.40424752,
     -0.0262032673, -4.25549507e-09, 0.999656618,
     3.95084276e-09, 1, 4.36051728e-09,
-    -0.999656618, 4.06374623e-09, -0.0262032673)  -- From your console output (rotation might be approximate due to cutoff, but should work!)
+    -0.999656618, 4.06374623e-09, -0.0262032673
+)
+
+-- Direct path to Boom's ClickDetector (for auto-talk/claim)
+local function getBoomClickDetector()
+    local path = workspace
+    path = path:FindFirstChild("Scriptable")
+    if not path then return nil end
+    path = path:FindFirstChild("NPC")
+    if not path then return nil end
+    path = path:FindFirstChild("Quest")
+    if not path then return nil end
+    path = path:FindFirstChild("Boom")
+    if not path then return nil end
+    path = path:FindFirstChild("ClickBox")
+    if not path then return nil end
+    return path:FindFirstChild("ClickDetector")
+end
 
 local statConfig = {
     [1] = {name = "Strength",   farm = "ToggleAutoStrength",     aba = "ToggleAutoTpBestStrength"},
@@ -18,7 +37,7 @@ local statConfig = {
     [6] = {name = "Speed",      farm = "ToggleAutoSpeedAgility"}  -- shared
 }
 
--- Helpers (formatNumber from main script - copy if needed, but assuming it's global or local)
+-- Helpers
 local function formatNumber(num)
     if not num or num == 0 then return "0" end
     local suffixes = {"", "K", "M", "B", "T", "Qd", "Qn", "Sx"}
@@ -49,9 +68,26 @@ local function tpToBoom()
     pcall(function()
         local char = player.Character or player.CharacterAdded:Wait()
         local hrp = char:WaitForChild("HumanoidRootPart", 5)
-        if hrp then
-            hrp.CFrame = BOOM_NPC_CFRAME * CFrame.new(0, 0, -5)  -- Slight offset to stand in front (adjust if needed)
+        if not hrp then return end
+        
+        -- Teleport player in front of Boom, facing him
+        hrp.CFrame = BOOM_NPC_CFRAME * CFrame.new(0, 0, -4.5)  -- adjust -4 / -5 / -6 if needed
+        
+        task.wait(0.3)  -- let character settle
+        
+        -- Fire the ClickDetector directly
+        local clickDetector = getBoomClickDetector()
+        if clickDetector and clickDetector:IsA("ClickDetector") then
+            fireclickdetector(clickDetector)
+            -- Optional: double-click for reliability on some servers
+            -- task.wait(0.15)
+            -- fireclickdetector(clickDetector)
+            print("Clicked Boom → quest should claim / next!")
+        else
+            warn("Could not find Boom ClickDetector! Check workspace.Scriptable.NPC.Quest.Boom.ClickBox.ClickDetector")
         end
+        
+        task.wait(2.5)  -- time for claim/next quest animation & server response
     end)
 end
 
@@ -86,7 +122,7 @@ local function getCurrentQuestData()
     return {questNumber = highest, tasks = tasks, folder = folder}
 end
 
--- Display function
+-- Display function (for GUI/HUD)
 _G.GetBoomQuestDisplayData = function()
     local data = getCurrentQuestData()
     if not data then
@@ -151,11 +187,11 @@ _G.ToggleAutoQuestBoom = function(enabled)
             if isDone then
                 disableAll()
                 tpToBoom()
-                task.wait(5)  -- Wait for claim/next
+                task.wait(5)  -- extra safety wait after claim
                 continue
             end
 
-            -- Find and enable FIRST unfinished stat
+            -- Find and enable FIRST unfinished stat only
             local targetI = nil
             for i = 1, 6 do
                 local t = data.tasks[i]
@@ -165,7 +201,7 @@ _G.ToggleAutoQuestBoom = function(enabled)
                 end
             end
 
-            disableAll()  -- Ensure only one active
+            disableAll()  -- make sure only one is active
 
             if targetI then
                 local cfg = statConfig[targetI]
@@ -173,7 +209,7 @@ _G.ToggleAutoQuestBoom = function(enabled)
                 if cfg.aba then safeToggle(cfg.aba, true) end
             end
 
-            task.wait(1.5)  -- Check freq
+            task.wait(1.5)  -- check interval
         end
         disableAll()
     end)
