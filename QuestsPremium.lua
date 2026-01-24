@@ -4,7 +4,10 @@ local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
 -- CONFIG: Boom NPC CFrame (updated with your position + orientation for accurate facing)
-local BOOM_NPC_CFRAME = CFrame.new(-34.0972023, 80.228693, 3.52807498, -0.0349256732, -0.10755586, 0.993619407, 1, 0.382658899e-09, -0.99389887, 1.0350725e-07, -0.0349256732, -0.0349256732)  -- From your console output (rotation might be approximate due to cutoff, but should work!)
+local BOOM_NPC_CFRAME = CFrame.new(-33.017746, 80.2238693, 3.40424752,
+    -0.0262032673, -4.25549507e-09, 0.999656618,
+    3.95084276e-09, 1, 4.36051728e-09,
+    -0.999656618, 4.06374623e-09, -0.0262032673)  -- From your console output (rotation might be approximate due to cutoff, but should work!)
 
 local statConfig = {
     [1] = {name = "Strength",   farm = "ToggleAutoStrength",     aba = "ToggleAutoTpBestStrength"},
