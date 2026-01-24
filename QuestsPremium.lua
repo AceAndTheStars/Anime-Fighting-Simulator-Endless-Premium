@@ -1,5 +1,4 @@
 -- QuestsPremium.lua - SEQUENTIAL AUTO QUEST + SELF-CONTAINED TRAINING LOOP
--- FIXED: correct Boom folder pattern + safe display (no "Quest read error")
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -7,7 +6,6 @@ local player = Players.LocalPlayer
 
 local RemoteEvent = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("RemoteEvent")
 
--- Boom NPC CFrame
 local BOOM_NPC_CFRAME = CFrame.new(
     -33.017746, 80.2238693, 3.40424752,
     -0.0262032673, -4.25549507e-09, 0.999656618,
@@ -15,7 +13,6 @@ local BOOM_NPC_CFRAME = CFrame.new(
     -0.999656618, 4.06374623e-09, -0.0262032673
 )
 
--- Entrance positions
 local EntrancePositions = {
     Strength = {
         Vector3.new(-6.535,    65.000,  127.964),
@@ -79,7 +76,6 @@ local EntrancePositions = {
     }
 }
 
--- Inside positions
 local InsidePositions = {
     Durability = {
         [8] = Vector3.new(-2695.975, -229.010, 352.760),
@@ -92,7 +88,6 @@ local InsidePositions = {
     }
 }
 
--- Tier thresholds
 local TierRequirements = {
     0, 10000, 100000, 1000000, 10000000, 100000000, 1000000000, 100000000000,
     5000000000000, 250000000000000, 50000000000000000, 1000000000000000000,
@@ -100,14 +95,12 @@ local TierRequirements = {
     1000000000000000000000000
 }
 
--- Portal paths
 local PortalMap = {
     Durability = { [8] = "DragonTeleport" },
     Chakra = { [12] = "Ighicho" },
     SpeedAgility = { [2] = "ThePodTeleport" }
 }
 
--- Stat config
 local statConfig = {
     [1] = {name = "Strength"},
     [2] = {name = "Durability"},
@@ -117,7 +110,6 @@ local statConfig = {
     [6] = {name = "Speed"}
 }
 
--- Training
 local TrainingActive = {}
 
 local function GetTrainId(statName)
@@ -162,7 +154,6 @@ local function StopTraining(statName)
     TrainingActive[statName] = false
 end
 
--- Safe quest data
 local function getCurrentQuestData()
     local quests = player:FindFirstChild("Quests")
     if not quests then return nil end
@@ -171,7 +162,7 @@ local function getCurrentQuestData()
     for _, child in ipairs(quests:GetChildren()) do
         if child:IsA("Folder") and string.match(child.Name, "^Boom%d+$") then
             folder = child
-            break  -- take the first Boom folder (usually the active one)
+            break
         end
     end
 
@@ -186,30 +177,26 @@ local function getCurrentQuestData()
         local p = progress:FindFirstChild(tostring(i))
         local r = reqs:FindFirstChild(tostring(i))
         tasks[i] = {
-            current = (p and p.Value ~= nil) and p.Value or 0,
-            required = (r and r.Value ~= nil) and r.Value or 0
+            current = p and p.Value or 0,
+            required = r and r.Value or 0
         }
     end
 
     return {tasks = tasks, folder = folder}
 end
 
--- Safe display
 _G.GetBoomQuestDisplayData = function()
     local data = getCurrentQuestData()
     if not data then
-        return {
-            statusText = "Loading quest data...",
-            tasks = {"—", "—", "—", "—", "—", "—"}
-        }
+        return {statusText = "No Boom quest active", tasks = {"—", "—", "—", "—", "—", "—"}}
     end
 
     local tasksDisplay = {}
     local isDone = true
 
     for i = 1, 6 do
-        local t = data.tasks[i]
-        local name = statConfig[i] and statConfig[i].name or ("Task " .. i)
+        local t = data.tasks[i] or {current = 0, required = 0}
+        local name = statConfig[i].name or ("Task " .. i)
         table.insert(tasksDisplay, name .. ": " .. formatNumber(t.current) .. " / " .. formatNumber(t.required))
 
         if t.required > 0 and t.current < t.required then
@@ -218,12 +205,11 @@ _G.GetBoomQuestDisplayData = function()
     end
 
     return {
-        statusText = isDone and "Completed (claim/next)" or "Active quest",
+        statusText = isDone and "Completed" or "Active",
         tasks = tasksDisplay
     }
 end
 
--- Get best entrance
 local function getBestEntrance(statId)
     local statName = statConfig[statId].name
     local key, positionsKey
@@ -244,7 +230,6 @@ local function getBestEntrance(statId)
     return EntrancePositions[positionsKey][index] or EntrancePositions[positionsKey][1]
 end
 
--- Get inside
 local function getInsidePosition(statId)
     local statName = statConfig[statId].name
     local statKey = (statName == "Speed" or statName == "Agility") and "SpeedAgility" or statName
@@ -261,7 +246,6 @@ local function getInsidePosition(statId)
     return InsidePositions[statKey] and InsidePositions[statKey][index]
 end
 
--- TP to best
 local function tpToBestTraining(statId)
     local entrancePos = getBestEntrance(statId)
     if not entrancePos then return end
@@ -312,7 +296,6 @@ local function tpToBestTraining(statId)
     end
 end
 
--- Boom claim
 local function tpToBoom()
     pcall(function()
         local char = player.Character or player.CharacterAdded:Wait()
@@ -338,7 +321,6 @@ local function tpToBoom()
     end)
 end
 
--- Main auto loop
 local autoLoop = false
 
 _G.ToggleAutoQuestBoom = function(enabled)
@@ -354,9 +336,6 @@ _G.ToggleAutoQuestBoom = function(enabled)
         while autoLoop do
             local data = getCurrentQuestData()
             if not data then
-                for stat in pairs(TrainingActive) do
-                    StopTraining(stat)
-                end
                 task.wait(3)
                 continue
             end
