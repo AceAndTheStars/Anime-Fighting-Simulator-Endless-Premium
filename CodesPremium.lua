@@ -1,69 +1,95 @@
--- AFSE Codes Redeemer - Standalone Script
--- Redeems all codes one by one with safe delay
+-- Codes Tab
+local CodesTab = Window:CreateTab("Codes", "gift")
+CodesTab:CreateSection("Redeem Codes")
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local remote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("RemoteFunction")
+local isRedeeming = false
 
-local codes = {
-    "YenCode",
-    "FreeChikara",
-    "FreeChikara2",
-    "FreeChikara3",
-    "BugFixes1",
-    "10Favs",
-    "10Likes",
-    "LASTFIX",
-    "Update1Point1",
-    "SorryForBugsLol",
-    "1kVisits",
-    "50Likes",
-    "1000Members",
-    "MobsUpdate",
-    "1WeekAnniversary",
-    "400CCU",
-    "10kVisits",
-    "100Favs",
-    "100CCU",
-    "Gullible67",
-    "ChristmasDelay",
-    "Krampus",
-    "1MVisits",
-    "10kLikes",
-    "ChristmasTime",
-    "HappyNewYear",
-    "50kLikes",
-    "10MVisits",
-    "NewBloodlines",
-    "NewSpecials",
-    "MinorBugs",
-    "BadActors",
-    "JanuaryIncident",
-    "15kLikes",
-    "25kLikes",
-    "30kLikes"
-}
-
-print("Starting to redeem " .. #codes .. " codes...")
-
-for i, code in ipairs(codes) do
-    print("[" .. i .. "/" .. #codes .. "] Attempting code: " .. code)
+local function redeemAllCodes()
+    if isRedeeming then return end
     
-    local args = {
-        "Code",
-        code
-    }
+    isRedeeming = true
+    print("Starting code redemption (" .. #codes .. " codes)")
     
-    local success, result = pcall(function()
-        return remote:InvokeServer(unpack(args))
-    end)
+    local successCount = 0
     
-    if success and result ~= false then
-        print("✅ Success: " .. code)
-    else
-        print("❌ Failed/Already Used: " .. code)
+    for i, code in ipairs(codes) do
+        print("[" .. i .. "/" .. #codes .. "] Trying: " .. code)
+        
+        local success, result = pcall(function()
+            return remote:InvokeServer("Code", code)
+        end)
+        
+        if success and result ~= false then
+            print("   → Success!")
+            successCount = successCount + 1
+        else
+            print("   → Failed / Already used")
+        end
+        
+        task.wait(0.4)
     end
     
-    wait(0.3) -- Safe delay to avoid rate limiting
+    print("Finished! " .. successCount .. "/" .. #codes .. " succeeded.")
+    isRedeeming = false
 end
 
-print("All codes processed!")
+local codes = {
+   "YenCode",
+   "FreeChikara",
+   "FreeChikara2",
+   "FreeChikara3",
+   "BugFixes1",
+   "10Favs",
+   "10Likes",
+   "LASTFIX",
+   "Update1Point1",
+   "SorryForBugsLol",
+   "1kVisits",
+   "50Likes",
+   "1000Members",
+   "MobsUpdate",
+   "1WeekAnniversary",
+   "400CCU",
+   "10kVisits",
+   "100Favs",
+   "100CCU",
+   "Gullible67",
+   "ChristmasDelay",
+   "Krampus",
+   "1MVisits",
+   "10kLikes",
+   "ChristmasTime",
+   "HappyNewYear",
+   "50kLikes",
+   "10MVisits",
+   "NewBloodlines",
+   "NewSpecials",
+   "MinorBugs",
+   "BadActors",
+   "JanuaryIncident",
+   "15kLikes",
+   "25kLikes",
+   "30kLikes",
+   "175KLIKES",
+   "200KLIKES",
+   "SMALLCHIKARACODE",
+   "BIGCHIKARACODE",
+   "FIGHTINGPASS",
+   "KURAMAUPDATE",
+   "NewFridayYenCode",
+   "NewFridayBoostsCode",
+   "ThursdayYenNewCode",
+   "ThursdayBoostsNewCode",
+   "KuramaUpdateSoon",
+   "BUGSPATCH4",
+   "BUGSPATCH3",
+   "BUGSPATCH2",
+   "125KLIKES",
+   "75KLIKES",
+   "50KFAVORITES"
+}
+
+CodesTab:CreateButton({
+    Name = "Redeem All Codes",
+    Callback = redeemAllCodes
+})
