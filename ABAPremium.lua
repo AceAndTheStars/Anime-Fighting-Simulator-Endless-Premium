@@ -1,27 +1,26 @@
--- ABA.lua - Auto Best Area TP (Strict conservative version)
--- Only moves to a tier when stat >= the labeled threshold
--- Never jumps ahead — with 16k strength stays in [10K] until 100k+
+-- ABAPremium.lua - Auto Best Area TP (Updated with Speed & Agility)
+-- Conservative: only moves when stat >= threshold
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
--- Real positions (index 1 = [100], 2 = [10K], 3 = [100K], ..., 13 = [1sx])
+-- Positions
 local TrainingPositions = {
     Strength = {
-        Vector3.new(-6.535,    65.000,  127.964),   -- 1: [100]
-        Vector3.new(1341.183, 153.963, -134.552),   -- 2: [10K]
-        Vector3.new(-1247.836,  59.000, 481.151),   -- 3: [100K]
-        Vector3.new(-905.422,   84.882, 170.033),   -- 4: [1M]
-        Vector3.new(-2257.115, 617.105, 546.753),   -- 5: [10M]
-        Vector3.new(-51.014,    63.736, -1302.732), -- 6: [100M]
-        Vector3.new(714.433,   151.732, 926.474),   -- 7: [1B]
-        Vector3.new(1846.153,  141.200,  90.468),   -- 8: [100B]
-        Vector3.new(604.720,   653.458, 413.728),   -- 9: [5T]
-        Vector3.new(4284.651,   60.000, -534.592),  -- 10: [250T]
-        Vector3.new(797.981,   232.382, -1002.742), -- 11: [75qd]
-        Vector3.new(3873.921,  136.388, 855.103),   -- 12: [2.5QN]
-        Vector3.new(3933.355,  724.772, -1197.858), -- 13: [1sx]
+        Vector3.new(-6.535,    65.000,  127.964),   -- [100]
+        Vector3.new(1341.183, 153.963, -134.552),   -- [10K]
+        Vector3.new(-1247.836,  59.000, 481.151),   -- [100K]
+        Vector3.new(-905.422,   84.882, 170.033),   -- [1M]
+        Vector3.new(-2257.115, 617.105, 546.753),   -- [10M]
+        Vector3.new(-51.014,    63.736, -1302.732), -- [100M]
+        Vector3.new(714.433,   151.732, 926.474),   -- [1B]
+        Vector3.new(1846.153,  141.200,  90.468),   -- [100B]
+        Vector3.new(604.720,   653.458, 413.728),   -- [5T]
+        Vector3.new(4284.651,   60.000, -534.592),  -- [250T]
+        Vector3.new(797.981,   232.382, -1002.742), -- [75qd]
+        Vector3.new(3873.921,  136.388, 855.103),   -- [2.5QN]
+        Vector3.new(3933.355,  724.772, -1197.858), -- [1sx]
     },
     Durability = {
         Vector3.new(72.340,    69.263,  877.353),
@@ -52,28 +51,26 @@ local TrainingPositions = {
         Vector3.new(-737.839, 2792.597, 567.334),
         Vector3.new(3151.687,  163.000, -102.653),
         Vector3.new(358.822,   292.742, 1864.116),
+    },
+    SpeedAgility = {  -- Shared zones for Speed & Agility
+        Vector3.new(-104.639,  61.000, -508.363),   -- [100]
+        Vector3.new(-386.277, 105.000, -47.382),    -- [10K Speed & Agility]
+        Vector3.new(3484.517,  60.000, 144.701),    -- [100K Speed & Agility]
+        Vector3.new(4111.812,  60.922, 849.557),    -- [5M Speed & Agility]
+        -- Add more tiers later if you find higher ones (50M, 500M, etc.)
     }
 }
 
--- Minimum stat required for EACH tier (aligned with button labels)
--- You must be >= this value to use that area
+-- Tier requirements (same pattern)
 local TierRequirements = {
-    0,           -- 1: [100] → always
+    0,           -- 1: [100] or lowest
     10000,       -- 2: [10K]
     100000,      -- 3: [100K]
-    1000000,     -- 4: [1M]
-    10000000,    -- 5: [10M]
-    100000000,   -- 6: [100M]
-    1000000000,  -- 7: [1B]
-    100000000000,-- 8: [100B]
-    5000000000000,-- 9: [5T]
-    250000000000000,--10: [250T]
-    75000000000000000,--11: [75qd]
-    2500000000000000000,--12: [2.5QN]
-    -- 13: [1sx] → no higher threshold needed (last one)
+    5000000,     -- 4: [5M]
+    -- No higher — stays at [5M] forever (conservative)
 }
 
--- Get current stat value safely
+-- Get current stat value
 local function GetStatValue(key)
     local stats = LocalPlayer:FindFirstChild("Stats")
     if not stats then return 0 end
@@ -81,38 +78,49 @@ local function GetStatValue(key)
     return (obj and (obj:IsA("IntValue") or obj:IsA("NumberValue"))) and obj.Value or 0
 end
 
--- Find highest tier where current >= requirement
+-- Find highest allowed tier
 local function GetBestTierIndex(current)
-    local bestIndex = 1
+    local best = 1
     for i = #TierRequirements, 1, -1 do
         if current >= TierRequirements[i] then
-            bestIndex = i
+            best = i
             break
         end
     end
-    return bestIndex
+    return best
 end
 
--- Get target position
+-- Get best position
 local function GetBestPosition(statName)
-    local key = (statName == "Strength" and "1") or
-                (statName == "Durability" and "2") or
-                (statName == "Chakra" and "3") or nil
-    if not key then return nil end
+    local key, posTable
+    if statName == "Strength" then
+        key, posTable = "1", "Strength"
+    elseif statName == "Durability" then
+        key, posTable = "2", "Durability"
+    elseif statName == "Chakra" then
+        key, posTable = "3", "Chakra"
+    elseif statName == "Speed" then
+        key, posTable = "5", "SpeedAgility"
+    elseif statName == "Agility" then
+        key, posTable = "6", "SpeedAgility"
+    else
+        return nil
+    end
 
     local current = GetStatValue(key)
-    if current <= 0 then return TrainingPositions[statName][1] end
+    if current <= 0 then return TrainingPositions[posTable][1] end
 
     local index = GetBestTierIndex(current)
-    local pos = TrainingPositions[statName][index]
-    return pos or TrainingPositions[statName][1]  -- fallback to lowest
+    return TrainingPositions[posTable][index] or TrainingPositions[posTable][1]
 end
 
 -- Loop controllers
 local Loops = {
     Strength   = { Active = false, Connection = nil },
     Durability = { Active = false, Connection = nil },
-    Chakra     = { Active = false, Connection = nil }
+    Chakra     = { Active = false, Connection = nil },
+    Speed      = { Active = false, Connection = nil },
+    Agility    = { Active = false, Connection = nil }
 }
 
 local function StartTp(statName)
@@ -150,19 +158,13 @@ local function StopTp(statName)
 end
 
 -- Toggle functions
-_G.ToggleAutoTpBestStrength = function(enabled)
-    if enabled then StartTp("Strength") else StopTp("Strength") end
-end
+_G.ToggleAutoTpBestStrength   = function(v) if v then StartTp("Strength")   else StopTp("Strength")   end end
+_G.ToggleAutoTpBestDurability = function(v) if v then StartTp("Durability") else StopTp("Durability") end end
+_G.ToggleAutoTpBestChakra     = function(v) if v then StartTp("Chakra")     else StopTp("Chakra")     end end
+_G.ToggleAutoTpBestSpeed      = function(v) if v then StartTp("Speed")      else StopTp("Speed")      end end
+_G.ToggleAutoTpBestAgility    = function(v) if v then StartTp("Agility")    else StopTp("Agility")    end end
 
-_G.ToggleAutoTpBestDurability = function(enabled)
-    if enabled then StartTp("Durability") else StopTp("Durability") end
-end
-
-_G.ToggleAutoTpBestChakra = function(enabled)
-    if enabled then StartTp("Chakra") else StopTp("Chakra") end
-end
-
--- Cleanup on character remove
+-- Cleanup
 LocalPlayer.CharacterRemoving:Connect(function()
     for _, l in pairs(Loops) do
         if l.Active and l.Connection then
