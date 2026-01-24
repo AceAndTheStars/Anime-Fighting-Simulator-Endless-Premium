@@ -82,9 +82,9 @@ local function tpToBoom()
             -- Optional: double-click for reliability on some servers
             -- task.wait(0.15)
             -- fireclickdetector(clickDetector)
-            print("Clicked Boom → quest should claim / next!")
+            print("Quest Claimed, moving on to next")
         else
-            warn("Could not find Boom ClickDetector! Check workspace.Scriptable.NPC.Quest.Boom.ClickBox.ClickDetector")
+            warn("Something went wrong.")
         end
         
         task.wait(2.5)  -- time for claim/next quest animation & server response
