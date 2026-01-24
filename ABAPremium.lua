@@ -1,7 +1,6 @@
--- ABAPremium.lua - Auto Best Area TP + Manual Training Loop (self-contained)
--- Updated with NEW high-end tiers 2026 + Portal Auto-Click + Built-in Training
--- Uses 0.1s loop instead of Heartbeat
--- FIXED: uses separate entrance vs inside positions for portal zones → no bounce loop
+-- ABAPremium.lua - Auto Best Area TP ONLY (NO auto-training)
+-- Keeps all teleport logic, portal clicks, tier detection, respawn handling
+-- Removed: all training RemoteEvent fires and TrainingActive logic
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -9,25 +8,25 @@ local LocalPlayer = Players.LocalPlayer
 
 local RemoteEvent = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("RemoteEvent")
 
--- Entrance positions (where you click the portal/NPC)
+-- Entrance positions (unchanged)
 local EntrancePositions = {
     Strength = {
-        Vector3.new(-6.535,    65.000,  127.964),   -- 1: [100]
-        Vector3.new(1341.183, 153.963, -134.552),   -- 2: [10K]
-        Vector3.new(-1247.836,  59.000, 481.151),   -- 3: [100K]
-        Vector3.new(-905.422,   84.882, 170.033),   -- 4: [1M]
-        Vector3.new(-2257.115, 617.105, 546.753),   -- 5: [10M]
-        Vector3.new(-51.014,    63.736, -1302.732), -- 6: [100M]
-        Vector3.new(714.433,   151.732, 926.474),   -- 7: [1B]
-        Vector3.new(1846.153,  141.200,  90.468),   -- 8: [100B]
-        Vector3.new(604.720,   653.458, 413.728),   -- 9: [5T]
-        Vector3.new(4284.651,   60.000, -534.592),  -- 10: [250T]
-        Vector3.new(797.981,   232.382, -1002.742), -- 11: [50qd]
-        Vector3.new(3873.921,  136.388, 855.103),   -- 12: [1qn]
-        Vector3.new(3933.355,  724.772, -1197.858), -- 13: [100QN]
-        Vector3.new(2317.814,  261.246, -625.500),  -- 14: [1sx]
-        Vector3.new(-2359.330, 411.794, 1795.281),  -- 15: [100sx]
-        Vector3.new(-2101.241,1484.821, -2167.363), -- 16: [1SP]
+        Vector3.new(-6.535,    65.000,  127.964),
+        Vector3.new(1341.183, 153.963, -134.552),
+        Vector3.new(-1247.836,  59.000, 481.151),
+        Vector3.new(-905.422,   84.882, 170.033),
+        Vector3.new(-2257.115, 617.105, 546.753),
+        Vector3.new(-51.014,    63.736, -1302.732),
+        Vector3.new(714.433,   151.732, 926.474),
+        Vector3.new(1846.153,  141.200,  90.468),
+        Vector3.new(604.720,   653.458, 413.728),
+        Vector3.new(4284.651,   60.000, -534.592),
+        Vector3.new(797.981,   232.382, -1002.742),
+        Vector3.new(3873.921,  136.388, 855.103),
+        Vector3.new(3933.355,  724.772, -1197.858),
+        Vector3.new(2317.814,  261.246, -625.500),
+        Vector3.new(-2359.330, 411.794, 1795.281),
+        Vector3.new(-2101.241,1484.821, -2167.363),
     },
     Durability = {
         Vector3.new(72.340,    69.263,  877.353),
@@ -73,7 +72,7 @@ local EntrancePositions = {
     }
 }
 
--- Inside positions (after portal activation) — only for portal zones
+-- Inside positions (unchanged)
 local InsidePositions = {
     Durability = {
         [8] = Vector3.new(-2695.975, -229.010, 352.760),  -- 100B Durability inside
@@ -86,7 +85,7 @@ local InsidePositions = {
     }
 }
 
--- Tier thresholds
+-- Tier thresholds (unchanged)
 local TierRequirements = {
     0, 10000, 100000, 1000000, 10000000, 100000000, 1000000000, 100000000000,
     5000000000000, 250000000000000, 50000000000000000, 1000000000000000000,
@@ -94,7 +93,7 @@ local TierRequirements = {
     1000000000000000000000000
 }
 
--- Portal click paths for premium tiers
+-- Portal click paths (unchanged)
 local PortalMap = {
     Durability = { [8] = "DragonTeleport" },
     Chakra = { [12] = "Ighicho" },
@@ -102,54 +101,7 @@ local PortalMap = {
 }
 
 -- ────────────────────────────────────────────────
--- Training loop helpers (self-contained)
--- ────────────────────────────────────────────────
-
-local TrainingActive = {
-    Strength   = false,
-    Durability = false,
-    Chakra     = false,
-    Speed      = false,
-    Agility    = false
-}
-
-local function GetTrainId(statName)
-    if statName == "Strength"   then return 1 end
-    if statName == "Durability" then return 2 end
-    if statName == "Chakra"     then return 3 end
-    if statName == "Speed"      then return 5 end
-    if statName == "Agility"    then return 6 end
-    return nil
-end
-
-local function StartTraining(statName)
-    if TrainingActive[statName] then return end
-    TrainingActive[statName] = true
-
-    task.spawn(function()
-        while TrainingActive[statName] do
-            local id = GetTrainId(statName)
-            if id then
-                pcall(function()
-                    if statName == "Speed" or statName == "Agility" then
-                        RemoteEvent:FireServer("Train", 5)
-                        RemoteEvent:FireServer("Train", 6)
-                    else
-                        RemoteEvent:FireServer("Train", id)
-                    end
-                end)
-            end
-            task.wait(0.08 + math.random()/20)  -- slight jitter ~0.08–0.13s
-        end
-    end)
-end
-
-local function StopTraining(statName)
-    TrainingActive[statName] = false
-end
-
--- ────────────────────────────────────────────────
--- Stat value & best tier logic
+-- Stat value & best tier logic (unchanged)
 -- ────────────────────────────────────────────────
 
 local function GetStatValue(key)
@@ -188,7 +140,7 @@ local function GetBestEntrancePosition(statName)
 end
 
 -- ────────────────────────────────────────────────
--- Main logic: Teleport + portal + training
+-- Teleport + portal logic ONLY (no training)
 -- ────────────────────────────────────────────────
 
 local function teleportToBest(statName)
@@ -218,21 +170,20 @@ local function teleportToBest(statName)
 
     local dist = (hrp.Position - targetPos).Magnitude
 
-    -- If already close → train and stay
+    -- If already close → just stay (no training starts)
     if dist <= 45 then
-        StartTraining(statName)
         return
     end
 
-    -- Teleport to current target (entrance or inside)
+    -- Teleport to current target
     hrp.CFrame = CFrame.new(targetPos)
 
-    -- If we still need to click portal (only when targeting entrance)
+    -- If we need to click portal (only when targeting entrance)
     if not insidePos and PortalMap[statKey] then
         local portalPath = PortalMap[statKey][tierIndex]
         if portalPath then
             task.spawn(function()
-                task.wait(1.5)  -- increased slightly to give portal UI time to appear
+                task.wait(1.5)
                 pcall(function()
                     local folder = workspace:WaitForChild("Scriptable", 8):WaitForChild("NPC", 8):WaitForChild("Teleport", 8)
                     local clickDetector = folder:WaitForChild(portalPath, 5):WaitForChild("ClickBox", 5):WaitForChild("ClickDetector", 3)
@@ -243,13 +194,13 @@ local function teleportToBest(statName)
             end)
         end
 
-        -- Give the game time to teleport player inside before next check
-        task.wait(3)  -- ← key change: longer wait after click to avoid bounce
+        -- Wait for teleport inside
+        task.wait(3)
     end
 end
 
 -- ────────────────────────────────────────────────
--- Loop & toggle control (0.1s delay loop)
+-- Loop & toggle control (0.1s delay, no training)
 -- ────────────────────────────────────────────────
 
 local Loops = {
@@ -280,10 +231,8 @@ local function StartTp(statName)
 
             teleportToBest(statName)
 
-            task.wait(0.1)  -- 0.1 second delay between checks/teleports
+            task.wait(0.1)
         end
-
-        StopTraining(statName)
     end)
 end
 
@@ -292,19 +241,16 @@ local function StopTp(statName)
     if loop then
         loop.Active = false
     end
-    StopTraining(statName)
 end
 
--- Toggle functions
+-- Toggle functions (unchanged names so main script still works)
 _G.ToggleAutoTpBestStrength   = function(v) if v then StartTp("Strength")   else StopTp("Strength")   end end
 _G.ToggleAutoTpBestDurability = function(v) if v then StartTp("Durability") else StopTp("Durability") end end
 _G.ToggleAutoTpBestChakra     = function(v) if v then StartTp("Chakra")     else StopTp("Chakra")     end end
 _G.ToggleAutoTpBestSpeed      = function(v) if v then StartTp("Speed")      else StopTp("Speed")      end end
 _G.ToggleAutoTpBestAgility    = function(v) if v then StartTp("Agility")    else StopTp("Agility")    end end
 
--- Cleanup on death/respawn
+-- Cleanup on death/respawn (no training to stop anymore)
 LocalPlayer.CharacterRemoving:Connect(function()
-    for stat in pairs(TrainingActive) do
-        StopTraining(stat)
-    end
+    -- Nothing needed here anymore since no TrainingActive
 end)
