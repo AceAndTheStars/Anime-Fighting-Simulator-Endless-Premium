@@ -1,5 +1,5 @@
 -- QuestsPremium.lua - Boom Quest Tracker & Auto-Progress (Premium)
--- Rewritten clean version: UI display + auto-claim + trains ONLY needed stats
+-- Fixed remote firing to match exact working format: "Train", statID via unpack
 -- NO auto-TP to best areas — pure remote training + claim via NPC click
 
 local Players = game:GetService("Players")
@@ -27,7 +27,7 @@ local function formatNumber(num)
     return string.format("%.1f%s", num, suffixes[i]):gsub("%.0$", "")
 end
 
--- Suffix multipliers for parsing displayed progress (full numbers instead of 1eX)
+-- Suffix multipliers for parsing displayed progress (full numbers)
 local suffixMultipliers = {
     [""]   = 1,
     ["K"]  = 1000,
@@ -52,7 +52,7 @@ local function parseFormatted(str)
     return num * mult
 end
 
--- Task index → stat ID mapping (Sword has no TP anyway)
+-- Task index → stat ID mapping
 local taskToStat = {
     [1] = 1,  -- Strength
     [2] = 2,  -- Durability
@@ -175,7 +175,11 @@ local function trainTask(taskIndex, targetValue)
         end
 
         pcall(function()
-            TrainRemote:FireServer("Train", statID)
+            local args = {
+                "Train",
+                statID
+            }
+            TrainRemote:FireServer(unpack(args))
         end)
 
         task.wait(0.1 + math.random() * 0.05)  -- slight variation to look more natural
