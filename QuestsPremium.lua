@@ -1,4 +1,4 @@
--- QuestsPremium.lua (Cleaned - No Console Output)
+-- QuestsPremium.lua (Cleaned - No Console Output + Auto TP Integration)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -132,12 +132,12 @@ local phrasing = {
     ["OC"] = 1000000000000000000000000000
 }
 
--- Mapping task index → Stats tab TP toggle name
+-- Mapping task index → exact Stats tab TP toggle name
 local taskToBestTpToggle = {
     [1] = "ToggleAutoTpBestStrength",
     [2] = "ToggleAutoTpBestDurability",
     [3] = "ToggleAutoTpBestChakra",
-    [4] = "ToggleAutoTpBestStrength",  -- Sword has no dedicated area, use Strength or skip
+    [4] = nil,  -- Sword has no training area → no TP
     [5] = "ToggleAutoTpBestAgility",
     [6] = "ToggleAutoTpBestSpeed"
 }
@@ -163,22 +163,27 @@ end
 
 local function enableBestTpForTask(taskIndex)
     local toggleName = taskToBestTpToggle[taskIndex]
-    if toggleName and _G[toggleName] then
+    if toggleName and _G[toggleName] and type(_G[toggleName]) == "function" then
+        -- Ensure character is ready
+        if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            task.wait(1.5)
+        end
+        
         pcall(_G[toggleName], true)
-        task.wait(1.5)  -- give TP time to happen
+        task.wait(3)  -- give ABAPremium time to teleport
     end
 end
 
 local function disableBestTpForTask(taskIndex)
     local toggleName = taskToBestTpToggle[taskIndex]
-    if toggleName and _G[toggleName] then
+    if toggleName and _G[toggleName] and type(_G[toggleName]) == "function" then
         pcall(_G[toggleName], false)
     end
 end
 
 local function disableAllBestTp()
     for _, toggleName in pairs(taskToBestTpToggle) do
-        if toggleName and _G[toggleName] then
+        if toggleName and _G[toggleName] and type(_G[toggleName]) == "function" then
             pcall(_G[toggleName], false)
         end
     end
@@ -204,6 +209,9 @@ local function trainUntilDone(taskIndex, targetRaw)
     
     -- Enable best area TP
     enableBestTpForTask(taskIndex)
+    
+    -- Short settle before training
+    task.wait(0.5)
     
     while _G.BoomQuestRunning do
         local data = _G.GetBoomQuestDisplayData and _G.GetBoomQuestDisplayData()
